@@ -1,0 +1,14 @@
+{
+  "name": "chromallax",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn clean line art into a dual-line (black + magenta) fake-3D illustration on a cobalt panel.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

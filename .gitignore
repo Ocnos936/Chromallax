@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+
+# Private: design notes and Claude Code files stay local
+PROJECT.md
+CLAUDE.md
+.claude/

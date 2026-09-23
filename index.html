@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chromallax</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <h1>Chromallax</h1>
+      <div class="group pair">
+        <button type="button" id="open">Import</button>
+        <button type="button" id="demo">Demo</button>
+        <input type="file" id="file" accept="image/*" hidden />
+      </div>
+      <div class="segmented orientation" id="orientation" role="radiogroup" aria-label="Orientation">
+        <label title="Portrait"><input type="radio" name="orientation" data-param="orientation" value="portrait" aria-label="Portrait" /><span style="--w: 9px; --h: 12px"></span></label>
+        <label title="Landscape"><input type="radio" name="orientation" data-param="orientation" value="landscape" aria-label="Landscape" /><span style="--w: 14px; --h: 9px"></span></label>
+      </div>
+      <div class="segmented ratios" role="radiogroup" aria-label="Aspect ratio">
+        <label><input type="radio" name="ratio" data-param="ratio" value="1:1" /><span data-ratio="1:1">1:1</span></label>
+        <label><input type="radio" name="ratio" data-param="ratio" value="4:3" /><span data-ratio="4:3">4:3</span></label>
+        <label><input type="radio" name="ratio" data-param="ratio" value="16:9" /><span data-ratio="16:9">16:9</span></label>
+        <label><input type="radio" name="ratio" data-param="ratio" value="√2:1" /><span data-ratio="√2:1">√2:1</span></label>
+        <label><input type="radio" name="ratio" data-param="ratio" value="free" /><span class="free" style="--w: 13px; --h: 10px">Free</span></label>
+      </div>
+      <select id="size" data-param="size" data-type="number" aria-label="Canvas size">
+        <option value="1080"></option>
+        <option value="1920"></option>
+        <option value="2560"></option>
+        <option value="3840"></option>
+      </select>
+      <div class="free-size" id="free-size" hidden>
+        <input type="number" data-param="freeWidth" min="100" max="4096" step="1" aria-label="Canvas width in px" />
+        <span aria-hidden="true">×</span>
+        <input type="number" data-param="freeHeight" min="100" max="4096" step="1" aria-label="Canvas height in px" />
+        <span class="unit">px</span>
+      </div>
+      <button type="button" id="export" class="primary">Download PNG</button>
+    </header>
+
+    <aside class="controls">
+      <section>
+        <h2>Layers</h2>
+        <div class="layers" role="radiogroup" aria-label="Layer to move and resize">
+          <label class="layer">
+            <input type="radio" name="dragTarget" data-param="dragTarget" value="art" />
+            <span class="swatch both" aria-hidden="true"></span>
+            <span class="name">Figure</span>
+            <output class="meta" data-for="artScale"></output>
+            <button type="button" class="reset" data-layer="art" aria-label="Show the whole figure, centred" title="Show the whole figure, centred" hidden>↺</button>
+          </label>
+          <label class="layer child">
+            <input type="radio" name="dragTarget" data-param="dragTarget" value="secondary" />
+            <input type="color" data-param="secondary" aria-label="Echo colour" />
+            <span class="name">Echo</span>
+            <output class="meta" data-for="depth" title="Echo size relative to the ink (depth)"></output>
+            <button type="button" class="reset" data-layer="secondary" aria-label="Reset echo position" title="Reset position" hidden>↺</button>
+          </label>
+          <label class="layer child">
+            <input type="radio" name="dragTarget" data-param="dragTarget" value="primary" />
+            <input type="color" data-param="primary" aria-label="Ink colour" />
+            <span class="name">Ink</span>
+            <button type="button" class="reset" data-layer="primary" aria-label="Reset ink position" title="Reset position" hidden>↺</button>
+          </label>
+          <label class="layer panels">
+            <input type="radio" name="dragTarget" data-param="dragTarget" value="panel" />
+            <input type="color" data-param="panel" aria-label="Window colour" />
+            <span class="name">Windows</span>
+            <span class="tools">
+              <button type="button" class="tool" data-add="rect" aria-label="Add a rectangular window" title="Add a rectangle"><span class="glyph" style="--w: 8px; --h: 11px"></span></button>
+              <button type="button" class="tool" data-add="circle" aria-label="Add a round window" title="Add a circle"><span class="glyph" style="--w: 11px; --h: 11px; --r: 50%"></span></button>
+              <button type="button" class="tool" id="show-panels" aria-pressed="true">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2.2" /><path class="strike" d="M2.5 13.5 13.5 2.5" /></svg>
+              </button>
+            </span>
+          </label>
+          <div class="panel-list" id="panel-list"></div>
+        </div>
+
+        <div class="props" data-target="art">
+          <label class="field">
+            <span>Line width <output data-for="lineWidth"></output></span>
+            <input type="range" data-param="lineWidth" step="0.01" />
+          </label>
+          <label class="check"><input type="checkbox" data-param="equalWidth" /> Same width in echo and ink</label>
+          <button type="button" id="fill" title="Scale the figure to cover the whole canvas">Fill canvas</button>
+        </div>
+
+        <div class="props" data-target="panels">
+          <p class="note" id="panels-note"></p>
+        </div>
+
+        <div class="props" data-target="panel">
+          <div class="segmented" role="radiogroup" aria-label="Window shape">
+            <label><input type="radio" name="panelShape" value="rect" /><span style="--w: 10px; --h: 13px">Rectangle</span></label>
+            <label><input type="radio" name="panelShape" value="circle" /><span style="--w: 13px; --h: 13px; --r: 50%">Circle</span></label>
+          </div>
+          <div class="field">
+            <span>Size <output id="panel-size"></output></span>
+          </div>
+          <label class="field" id="angle-field">
+            <span>Rotation <output id="angle-out"></output></span>
+            <input type="range" id="angle" min="-180" max="180" step="1" />
+          </label>
+          <div class="actions">
+            <button type="button" id="match-depth" title="Make this the reference window: the canvas shrunk to 1 ÷ depth about the focus point">Match depth</button>
+            <button type="button" id="remove-panel" title="Delete this window (Delete key)">Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <details id="extraction">
+        <summary>Line extraction</summary>
+        <label class="field">
+          <span>Lines</span>
+          <select data-param="invert">
+            <option value="auto">Auto-detect</option>
+            <option value="dark">Dark on light</option>
+            <option value="light">Light on dark</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Threshold <output data-for="threshold"></output></span>
+          <input type="range" data-param="threshold" min="0" max="255" step="1" />
+        </label>
+        <label class="field">
+          <span>Softness <output data-for="softness"></output></span>
+          <input type="range" data-param="softness" min="0" max="128" step="1" />
+        </label>
+      </details>
+
+      <details>
+        <summary>More</summary>
+        <label class="field">
+          <span>Figure zoom <output data-for="artScale"></output></span>
+          <input type="range" data-param="artScale" step="0.01" />
+        </label>
+        <label class="field">
+          <span>Figure X <output data-for="artX"></output></span>
+          <input type="range" data-param="artX" step="0.001" />
+        </label>
+        <label class="field">
+          <span>Figure Y <output data-for="artY"></output></span>
+          <input type="range" data-param="artY" step="0.001" />
+        </label>
+        <label class="field">
+          <span>Focus point X <output data-for="centerX"></output></span>
+          <input type="range" data-param="centerX" min="0" max="1" step="0.001" />
+        </label>
+        <label class="field">
+          <span>Focus point Y <output data-for="centerY"></output></span>
+          <input type="range" data-param="centerY" min="0" max="1" step="0.001" />
+        </label>
+      </details>
+
+      <footer>
+        <button type="button" id="reset">Reset to reference</button>
+      </footer>
+    </aside>
+
+    <main class="stage" id="stage">
+      <div class="frame" id="frame">
+        <canvas id="output" tabindex="0" aria-label="Rendered illustration" aria-describedby="gesture-hint"></canvas>
+        <div class="crosshair" id="crosshair" aria-hidden="true"></div>
+        <div class="selection" id="selection" aria-hidden="true" hidden>
+          <b class="stem"></b>
+          <i class="knob"></i>
+          <i class="corner" style="left: 0; top: 0"></i>
+          <i class="edge" style="left: 50%; top: 0"></i>
+          <i class="corner" style="left: 100%; top: 0"></i>
+          <i class="edge" style="left: 0; top: 50%"></i>
+          <i class="edge" style="left: 100%; top: 50%"></i>
+          <i class="corner" style="left: 0; top: 100%"></i>
+          <i class="edge" style="left: 50%; top: 100%"></i>
+          <i class="corner" style="left: 100%; top: 100%"></i>
+        </div>
+      </div>
+      <p class="status" id="status" role="status">Loading…</p>
+      <p class="gesture-hint" id="gesture-hint"></p>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
