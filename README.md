@@ -90,12 +90,14 @@ Put the focus point on the feature that should stay sharp, usually an eye.
 
 - **Toolbar**
   - **Import** an image, or load the **Demo**, which opens filling the canvas.
+  - **Undo** and **redo** (⌘Z and ⇧⌘Z on a Mac, Ctrl+Z and Ctrl+Y elsewhere). A drag, a scroll or a slider move is one step. Loading an image starts the history over.
   - Choose portrait or landscape, then a ratio. The labels follow the orientation: 3:4 in portrait, 4:3 in landscape. **Free** lets you type an exact width × height.
   - Pick a size from the menu, which lists pixel dimensions (long edge 1080–3840 px). Then **Download PNG**.
 - **Layers**: a tree of **Figure** (with **Echo** and **Ink** under it) and **Windows** (with a row per window). The selected row is what the gestures on the picture act on.
   - Drag, or use the arrow keys (Shift: 10 px), to move it.
   - Scroll, pinch or press +/- to resize it. The Figure zooms around the pointer. Echo, Ink and all windows together resize around the focus point, so echo and ink stay aligned there.
   - Resizing Echo or Ink changes the depth, shown on the Echo row.
+  - The zoom on the Figure row and the depth on the Echo row can be set directly: drag the number sideways (Shift: faster), or click it to type a value. A new depth resizes the echo, so the ink and the windows stay where they are.
   - A moved layer shows ↺, which resets its position. The colour swatches set each layer's colour.
 - **Windows**: the ink shows only inside them. The Windows row adds a rectangle or a circle (**+**) and hides or shows all windows (the eye). With the Windows row selected, a drag moves all windows and scrolling resizes them.
   - Click a window on the picture, or its row, to select it. Drag it to move it, and drag its handles to resize it, as in a slide editor: corners change both sides, edges one side. Hold Shift to keep the ratio, and Alt (Option on a Mac) to keep the centre. Drag the round knob above it to turn it (Shift: 15° steps). Scrolling resizes it around its own centre.
@@ -107,6 +109,7 @@ Put the focus point on the feature that should stay sharp, usually an eye.
 - **Focus point**: drag the crosshair, or double-click the picture, to put it on the feature that should stay locked. The crosshair appears while the pointer is over the picture.
 - **Line extraction** (closed by default): polarity, threshold and softness, for images that don't come out clean.
 - **More** (closed by default): exact values for the figure's zoom and position and for the focus point.
+- **Kept settings**: the browser remembers your canvas, colours, windows, depth, focus point and line width for the next visit. The image isn't kept, and neither are its placement and the line extraction settings, which belong to one image. **Reset to reference** brings back the reference look.
 
 ## Choosing line art
 
@@ -124,6 +127,8 @@ The effect relies on reading the two copies as the same strokes at two depths, s
 | --- | --- |
 | `src/app.js` | UI and staged re-rendering |
 | `src/config.js` | Defaults |
+| `src/history.js` | Undo history |
+| `src/settings.js` | Which settings are kept between visits, and checking them when they come back |
 | `src/geometry.js` | Pure layout math: canvas presets, placement, depth, focus point, windows and their handles |
 | `src/preprocess.js` | Pure pixel ops: line mask, stroke distance field, stroke statistics, line width |
 | `src/render.js` | Canvas compositing |

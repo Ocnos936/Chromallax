@@ -3,13 +3,15 @@
 // can be moved and zoomed. Pixel work (thresholding, the stroke distance field,
 // line width) is debounced; every other change recomposites cached layer
 // canvases per frame.
-import { DEFAULTS, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, RANGES, REFERENCE_KEYS } from './config.js';
+import { DEFAULTS, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, RANGES, REFERENCE_KEYS, SIZES } from './config.js';
 import {
   RATIOS, canvasSize, computeLayout, fillScale, movePanels, panelAt, panelBox, panelHandles, ratioLabel,
   referencePanel, resizePanel, rotatePanel, scaleLayer, scalePanels,
 } from './geometry.js';
+import { History } from './history.js';
 import { lineMask, offsetCoverage, strokeField, strokeOffsets } from './preprocess.js';
 import { maskToCanvas, tint, drawComposite } from './render.js';
+import { keptSettings, readSettings } from './settings.js';
 
 const $ = (selector) => document.querySelector(selector);
 const output = $('#output');
@@ -211,6 +213,8 @@ const frameEl = $('#frame');
 const windowColour = $('.layer input[data-param="panel"]');
 const controls = [...document.querySelectorAll('[data-param]')];
 
+$('#size').append(...SIZES.map((size) => new Option('', String(size)))); // labelled W × H by syncCanvasControls
+
 for (const [key, [min, max]] of Object.entries(RANGES)) {
   for (const el of document.querySelectorAll(`input[type="range"][data-param="${key}"]`)) {
     el.min = String(min);
@@ -219,8 +223,10 @@ for (const [key, [min, max]] of Object.entries(RANGES)) {
 }
 
 function showValue(key) {
-  for (const readout of document.querySelectorAll(`output[data-for="${key}"]`)) {
-    readout.textContent = (FORMAT[key] ?? String)(params[key]);
+  const text = (FORMAT[key] ?? String)(params[key]);
+  for (const readout of document.querySelectorAll(`output[data-for="${key}"]`)) readout.textContent = text;
+  for (const input of document.querySelectorAll(`input[data-edit="${key}"]`)) {
+    if (input !== document.activeElement) input.value = text; // not while it is being typed in
   }
 }
 
@@ -231,8 +237,9 @@ function syncControls() {
     else if (el.type === 'checkbox') el.checked = params[key];
     else el.value = String(params[key]);
   }
-  // Every readout, including values set only by gestures (depth).
-  for (const key of new Set([...document.querySelectorAll('output[data-for]')].map((o) => o.dataset.for))) showValue(key);
+  // Every readout, including the editable ones on the layer rows (figure zoom, depth).
+  const readouts = document.querySelectorAll('output[data-for], input[data-edit]');
+  for (const key of new Set([...readouts].map((o) => o.dataset.for ?? o.dataset.edit))) showValue(key);
   for (const button of document.querySelectorAll('.layer .reset')) {
     const layer = LAYERS[button.dataset.layer];
     button.hidden = layer
@@ -462,7 +469,9 @@ function buildPanelRows() {
     const radio = row.querySelector('input');
     radio.addEventListener('change', () => selectPanel(i));
     radio.addEventListener('keydown', (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') removePanel(i);
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      removePanel(i);
+      commit();
     });
     row.querySelector('.remove').addEventListener('click', (e) => {
       e.preventDefault();
@@ -545,7 +554,6 @@ function syncSelection() {
 const HANDLE_RADIUS = 20; // CSS px around the crosshair centre
 const GRIP = { mouse: 8, touch: 20 }; // CSS px around a window handle
 const ROTATE_LIFT = 24; // CSS px from a window's top edge to its rotation knob
-const OFFSET_RANGE = [-2, 2]; // layer offsets, as canvas fractions
 const pointers = new Map(); // pointerId -> {x, y} in client px
 let gesture = null; // {kind: 'center' | 'pan' | 'pinch' | 'resize' | 'rotate' | 'none', ...}
 
@@ -570,8 +578,8 @@ function applyUpdate(update) {
   params.artX = clamp(params.artX, RANGES.artX);
   params.artY = clamp(params.artY, RANGES.artY);
   for (const { x, y } of Object.values(LAYERS)) {
-    params[x] = clamp(params[x], OFFSET_RANGE);
-    params[y] = clamp(params[y], OFFSET_RANGE);
+    params[x] = clamp(params[x], RANGES.offset);
+    params[y] = clamp(params[y], RANGES.offset);
   }
   syncControls();
   invalidate('depth' in update ? stageOf('depth') : 'composite');
@@ -740,8 +748,10 @@ frameEl.addEventListener('pointermove', (e) => {
 });
 function endPointer(e) {
   pointers.delete(e.pointerId);
-  if (pointers.size === 0) gesture = null;
-  else if (gesture?.kind === 'pinch') gesture = startPan(pointers.values().next().value);
+  if (pointers.size === 0) {
+    gesture = null;
+    commit(); // the whole gesture is one undo step
+  } else if (gesture?.kind === 'pinch') gesture = startPan(pointers.values().next().value);
   updateCursor(e);
 }
 frameEl.addEventListener('pointerup', endPointer);
@@ -754,6 +764,7 @@ frameEl.addEventListener(
     const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; // lines -> px
     const factor = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.001)); // ~10 % per wheel notch; ctrlKey = trackpad pinch
     resizeTarget(factor, toCanvas(e.clientX, e.clientY));
+    commitSoon();
   },
   { passive: false },
 );
@@ -761,13 +772,17 @@ frameEl.addEventListener(
 // The frame holds the pointer capture, so clicks land on it rather than on the canvas.
 frameEl.addEventListener('dblclick', (e) => {
   const p = toCanvas(e.clientX, e.clientY);
-  if (p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1) setCenter(p.x, p.y);
+  if (p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1) {
+    setCenter(p.x, p.y);
+    commit();
+  }
 });
 
 output.addEventListener('keydown', (e) => {
   if (activePanel() && (e.key === 'Delete' || e.key === 'Backspace')) {
     e.preventDefault();
     removePanel(state.selectedPanel);
+    commit();
     return;
   }
   if (e.key === 'Escape' && state.selectedPanel != null) {
@@ -778,6 +793,7 @@ output.addEventListener('keydown', (e) => {
   if (zoom) {
     e.preventDefault();
     resizeTarget(zoom, { x: params.centerX, y: params.centerY });
+    commitSoon();
     return;
   }
   const px = e.shiftKey ? 10 : 1;
@@ -785,7 +801,183 @@ output.addEventListener('keydown', (e) => {
   if (!move) return;
   e.preventDefault();
   moveBy({ ...params }, move[0] / output.width, move[1] / output.height);
+  commitSoon(); // a run of presses is one undo step
 });
+
+// ---- Editable readouts --------------------------------------------------------
+// The Figure and Echo rows show the figure zoom and the depth. Drag one sideways to
+// change it (Shift: 10× as fast), click it to type a value, or step it with the arrow
+// keys (Shift: 10× the step). The depth resizes the echo about the focus point, as the
+// wheel does with Echo picked, so the ink and the windows stay put.
+
+function setDepth(depth) {
+  flashCenter();
+  applyUpdate(scaleLayer(params, 'secondary', depth / params.depth, { x: params.centerX, y: params.centerY }, RANGES));
+}
+
+const EDITS = {
+  artScale: { digits: 2, step: 0.01, perPx: 0.005, set: (artScale) => setArt({ ...params, artScale }) },
+  depth: { digits: 3, step: 0.01, perPx: 0.001, set: setDepth },
+};
+const DRAG_SLOP = 3; // CSS px a press on a readout moves before it counts as a drag
+
+for (const input of document.querySelectorAll('input[data-edit]')) {
+  const key = input.dataset.edit;
+  const edit = EDITS[key];
+  const plain = () => params[key].toFixed(edit.digits);
+  let drag = null;
+  let before = ''; // the value when typing began, for Escape
+
+  // Until the readout is being typed in, a press on it drags the value or, as a click, starts typing.
+  input.addEventListener('pointerdown', (e) => {
+    if (input === document.activeElement) return; // typing: the press places the caret
+    e.preventDefault();
+    input.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, from: params[key], moved: false };
+  });
+  input.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < DRAG_SLOP) return;
+    drag.moved = true;
+    edit.set(drag.from + dx * edit.perPx * (e.shiftKey ? 10 : 1));
+  });
+  input.addEventListener('pointerup', () => {
+    if (!drag) return;
+    const { moved } = drag;
+    drag = null;
+    if (moved) commit();
+    else {
+      input.focus();
+      input.select();
+    }
+  });
+  input.addEventListener('pointercancel', () => {
+    drag = null;
+    commit();
+  });
+
+  input.addEventListener('focus', () => {
+    input.value = before = plain();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    else if (e.key === 'Escape') {
+      input.value = before;
+      input.blur();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      edit.set(params[key] + (e.key === 'ArrowUp' ? 1 : -1) * edit.step * (e.shiftKey ? 10 : 1));
+      input.value = before = plain();
+      commitSoon();
+    }
+  });
+  // A typed value applies when typing ends. A decimal comma works too.
+  input.addEventListener('blur', () => {
+    const value = Number.parseFloat(input.value.replace(/[×x\s]/gi, '').replace(',', '.'));
+    if (input.value !== before && Number.isFinite(value)) edit.set(value);
+    showValue(key);
+    commit();
+  });
+}
+
+// ---- Undo, redo and kept settings --------------------------------------------
+// An edit becomes one undo step when it is committed: a control's change (sliders and
+// colour pickers on release), a button press, the end of a gesture on the picture, or a
+// pause in wheel and key input. A new image starts the history over. Every step also
+// stores the settings kept for the next visit (see settings.js), in this browser only.
+
+const SETTINGS_KEY = 'chromallax.settings';
+const edits = new History();
+const undoButton = $('#undo');
+const redoButton = $('#redo');
+let commitTimer = 0;
+
+// What undo restores: every parameter but the layer picked for gestures.
+function snapshot() {
+  const { dragTarget, ...rest } = params;
+  return rest;
+}
+
+function commit() {
+  clearTimeout(commitTimer);
+  if (!edits.commit(snapshot())) return;
+  saveSettings();
+  syncHistory();
+}
+
+function commitSoon() {
+  clearTimeout(commitTimer);
+  commitTimer = setTimeout(commit, 500);
+}
+
+// Undo starts over from the current parameters: at startup and with each new image.
+function startHistory() {
+  clearTimeout(commitTimer);
+  edits.reset(snapshot());
+  saveSettings();
+  syncHistory();
+}
+
+function syncHistory() {
+  undoButton.disabled = !edits.canUndo;
+  redoButton.disabled = !edits.canRedo;
+}
+
+// Put the parameters back as they were in `doc`, redoing only the stages that changed.
+function restore(doc) {
+  const changed = Object.keys(doc).filter((key) => JSON.stringify(doc[key]) !== JSON.stringify(params[key]));
+  Object.assign(params, doc);
+  if (state.selectedPanel != null && state.selectedPanel >= params.panels.length) state.selectedPanel = null;
+  lastDims = canvasDims();
+  syncControls();
+  if (changed.includes('centerX') || changed.includes('centerY')) flashCenter();
+  if (changed.length) invalidate(STAGES[Math.min(...changed.map((key) => STAGES.indexOf(stageOf(key))))]);
+}
+
+function step(back) {
+  commit(); // an edit still waiting for its pause becomes a step first
+  const doc = back ? edits.undo() : edits.redo();
+  if (!doc) return;
+  restore(doc);
+  saveSettings();
+  syncHistory();
+}
+
+undoButton.addEventListener('click', () => step(true));
+redoButton.addEventListener('click', () => step(false));
+document.addEventListener('change', commit);
+document.addEventListener('click', (e) => e.target.closest('button') && commit());
+window.addEventListener('pagehide', commit);
+
+// ⌘Z / Ctrl+Z undoes; ⇧⌘Z, Ctrl+Shift+Z or Ctrl+Y redoes. A field being typed in keeps its own undo.
+const MAC = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform ?? navigator.platform);
+undoButton.title = `Undo (${MAC ? '⌘Z' : 'Ctrl+Z'})`;
+redoButton.title = `Redo (${MAC ? '⇧⌘Z' : 'Ctrl+Y'})`;
+window.addEventListener('keydown', (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const key = e.key.toLowerCase();
+  if (key !== 'z' && !(key === 'y' && e.ctrlKey)) return;
+  if (e.target.matches?.('input[type="text"], input[type="number"]')) return;
+  e.preventDefault();
+  step(key === 'z' && !e.shiftKey);
+});
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(keptSettings(params)));
+  } catch {
+    // storage blocked, e.g. in a private window: the settings just aren't kept
+  }
+}
+
+function loadSettings() {
+  try {
+    return readSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY)));
+  } catch {
+    return {};
+  }
+}
 
 // ---- Loading and export -----------------------------------------------------
 
@@ -798,6 +990,7 @@ function setImage(image, name, { notice = '', fill = false } = {}) {
   const { width, height } = canvasDims();
   const artScale = fill ? clamp(fillScale(width, height, image.width, image.height), RANGES.artScale) : 1;
   Object.assign(params, { artX: 0.5, artY: 0.5, artScale });
+  startHistory(); // undo doesn't reach back past a new image
   syncControls();
   invalidate('source');
 }
@@ -879,7 +1072,10 @@ $('#export').addEventListener('click', () => {
 
 // ---- Start ------------------------------------------------------------------
 
+Object.assign(params, loadSettings());
+lastDims = canvasDims();
 syncControls();
+startHistory();
 const src = new URLSearchParams(location.search).get('src');
 if (src) loadUrl(src);
 else loadDemo();

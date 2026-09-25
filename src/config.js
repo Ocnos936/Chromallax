@@ -8,7 +8,7 @@ export const DEFAULTS = Object.freeze({
   // Canvas, independent of the source image. Portrait 1:√2 is the reference artwork's ratio.
   ratio: '√2:1', // key of RATIOS in geometry.js, or 'free'
   orientation: 'portrait', // 'portrait' | 'landscape' (ignored by 1:1 and free)
-  size: 1920, // long edge in px
+  size: 1920, // long edge in px, one of SIZES
   freeWidth: 1358, // canvas size in px when ratio is 'free'
   freeHeight: 1920,
 
@@ -51,6 +51,9 @@ export const DEFAULTS = Object.freeze({
   secondary: '#f0087d',
 });
 
+// Long edges in the canvas size menu, in px.
+export const SIZES = Object.freeze([1080, 1920, 2560, 3840]);
+
 // Slider ranges, also used to clamp values set by gestures and linking.
 export const RANGES = Object.freeze({
   artScale: [0.1, 4],
@@ -60,6 +63,7 @@ export const RANGES = Object.freeze({
   panelX: [-0.5, 1.5], // window centre
   panelY: [-0.5, 1.5],
   panelSide: [0.02, 3], // window width and height, in canvas short edges
+  offset: [-2, 2], // echo and ink shifts, as canvas fractions
   lineWidth: [0.3, 3],
   freeWidth: [100, 4096], // 4096² is about the largest canvas every browser allows
   freeHeight: [100, 4096],

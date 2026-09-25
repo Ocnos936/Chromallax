@@ -14,6 +14,14 @@
         <button type="button" id="demo">Demo</button>
         <input type="file" id="file" accept="image/*" hidden />
       </div>
+      <div class="group history">
+        <button type="button" class="icon" id="undo" aria-label="Undo" disabled>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5 2.5 6.5l3 3" /><path d="M2.5 6.5h7a4 4 0 0 1 0 8H7" /></svg>
+        </button>
+        <button type="button" class="icon" id="redo" aria-label="Redo" disabled>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.5 3.5 3 3-3 3" /><path d="M13.5 6.5h-7a4 4 0 0 0 0 8H9" /></svg>
+        </button>
+      </div>
       <div class="segmented orientation" id="orientation" role="radiogroup" aria-label="Orientation">
         <label title="Portrait"><input type="radio" name="orientation" data-param="orientation" value="portrait" aria-label="Portrait" /><span style="--w: 9px; --h: 12px"></span></label>
         <label title="Landscape"><input type="radio" name="orientation" data-param="orientation" value="landscape" aria-label="Landscape" /><span style="--w: 14px; --h: 9px"></span></label>
@@ -25,12 +33,7 @@
         <label><input type="radio" name="ratio" data-param="ratio" value="√2:1" /><span data-ratio="√2:1">√2:1</span></label>
         <label><input type="radio" name="ratio" data-param="ratio" value="free" /><span class="free" style="--w: 13px; --h: 10px">Free</span></label>
       </div>
-      <select id="size" data-param="size" data-type="number" aria-label="Canvas size">
-        <option value="1080"></option>
-        <option value="1920"></option>
-        <option value="2560"></option>
-        <option value="3840"></option>
-      </select>
+      <select id="size" data-param="size" data-type="number" aria-label="Canvas size"></select>
       <div class="free-size" id="free-size" hidden>
         <input type="number" data-param="freeWidth" min="100" max="4096" step="1" aria-label="Canvas width in px" />
         <span aria-hidden="true">×</span>
@@ -48,14 +51,14 @@
             <input type="radio" name="dragTarget" data-param="dragTarget" value="art" />
             <span class="swatch both" aria-hidden="true"></span>
             <span class="name">Figure</span>
-            <output class="meta" data-for="artScale"></output>
+            <input type="text" class="meta" data-edit="artScale" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Figure zoom" title="Figure zoom: drag sideways, or click to type" />
             <button type="button" class="reset" data-layer="art" aria-label="Show the whole figure, centred" title="Show the whole figure, centred" hidden>↺</button>
           </label>
           <label class="layer child">
             <input type="radio" name="dragTarget" data-param="dragTarget" value="secondary" />
             <input type="color" data-param="secondary" aria-label="Echo colour" />
             <span class="name">Echo</span>
-            <output class="meta" data-for="depth" title="Echo size relative to the ink (depth)"></output>
+            <input type="text" class="meta" data-edit="depth" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Depth: the echo's size relative to the ink" title="Depth, the echo's size relative to the ink: drag sideways, or click to type" />
             <button type="button" class="reset" data-layer="secondary" aria-label="Reset echo position" title="Reset position" hidden>↺</button>
           </label>
           <label class="layer child">

@@ -63,6 +63,29 @@ body {
   min-width: 76px;
 }
 
+/* Undo and redo */
+.group.history {
+  gap: 2px;
+}
+
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  padding: 6px 0;
+}
+
+button.icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Orientation: icon-only, and muted when the ratio has none (1:1, free) */
 .orientation span {
   padding-inline: 9px;
@@ -173,6 +196,13 @@ button {
 button:hover,
 select:hover {
   border-color: #4a4a58;
+}
+
+button:disabled {
+  color: var(--muted);
+  border-color: var(--line);
+  opacity: 0.45;
+  cursor: default;
 }
 
 button.primary {
@@ -355,6 +385,36 @@ button.primary {
 .layer .meta {
   grid-column: 3;
   font-size: 12px;
+}
+
+/* Figure zoom and depth: drag sideways, or click to type */
+.layer input.meta {
+  width: 7ch;
+  margin: -2px 0;
+  padding: 2px 4px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+
+.layer input.meta:hover {
+  color: var(--text);
+  border-color: #4a4a58;
+}
+
+.layer input.meta:focus {
+  color: var(--text);
+  background: var(--bg);
+  border-color: #4a4a58;
+  cursor: text;
+  outline-offset: 0;
 }
 
 .layer .reset,
