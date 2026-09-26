@@ -1,144 +1,134 @@
 # Chromallax
 
-Chroma + parallax: turns clean line art into a dual-line fake-3D illustration. A black copy of the drawing sits on a flat cobalt window, and a larger magenta copy floats in front of it and spills past the window's edges. Without the window, the smaller copy is drawn in blue straight on the black background. You can also cut several windows, rectangles and circles of any size, ratio and angle.
+English | [简体中文](README.zh-CN.md)
 
-![Line art on the left, then the Chromallax result with the window and without it](docs/images/hero.webp)
+**Line art at two depths.** Chromallax turns a drawing into a fake-3D picture. A small dark copy sits on a flat blue window, and a larger magenta copy floats in front of it, spilling past the window's edges.
 
-## Getting started
+<img src="docs/images/hero.webp" width="800" alt="Line art on the left, then the result with the window and without it">
 
-Chromallax runs in your web browser. A tiny local server, included in the project, serves it to the browser. All you need is Node.js; there is nothing else to install.
+It runs in your browser, with nothing to install beyond Node.js, and saves PNG, JPEG, WebP or a looping GIF.
 
-### 1. Install Node.js (once)
+<table>
+  <tr>
+    <td><img src="docs/images/motion.gif" width="250" alt="The demo drawing wiggling between two views"></td>
+    <td><img src="docs/images/windows.webp" width="250" alt="Three round windows and a turned rectangle"></td>
+    <td><img src="docs/images/red-blue.webp" width="250" alt="Red lines over blue lines on black, with no window"></td>
+  </tr>
+  <tr>
+    <td align="center">Wiggle, saved as a GIF</td>
+    <td align="center">Windows of any shape</td>
+    <td align="center">Red and blue, no window</td>
+  </tr>
+</table>
 
-Download the **LTS** version from [nodejs.org](https://nodejs.org) and install it. Any version from 20 up works. To check, open a terminal and run:
+## Quick start
 
-```bash
-node -v
-```
-
-It should print a version such as `v22.11.0`.
-
-> **Which terminal?** On macOS, use the **Terminal** app (Applications → Utilities). On Windows, use **PowerShell** from the Start menu.
-
-### 2. Get the code
-
-Clone the repository with git, or use GitHub's **Code → Download ZIP** and unzip it anywhere.
-
-### 3. Start the app
-
-Open a terminal **in the project folder**:
-
-- **macOS**: type `cd ` (with a space), drag the project folder onto the Terminal window, and press Enter.
-- **Windows**: open the folder in File Explorer, click the address bar, type `powershell` and press Enter.
-
-Then run:
+You need [Node.js](https://nodejs.org) 20 or later. In the project folder, run:
 
 ```bash
 npm run dev
 ```
 
-It prints a line like `Serving … at http://localhost:5173`. Open that address in Chrome, Safari, Firefox or Edge. There's no `npm install` step, because the project has no dependencies.
+Then open the address it prints, usually http://localhost:5173. There is no `npm install` and no build step.
 
-> Leave the terminal window open while you use the app. The terminal is the server.
+<details>
+<summary><b>New to the terminal? Step by step</b></summary>
 
-### 4. Use it
+1. **Install Node.js** once: download the LTS version from [nodejs.org](https://nodejs.org). To check it worked, open a terminal and run `node -v`; it should print a version such as `v22.11.0`. On macOS the terminal is the **Terminal** app (Applications → Utilities); on Windows, use **PowerShell** from the Start menu.
+2. **Get the code**: on GitHub, click **Code → Download ZIP** and unzip it anywhere, or clone the repository with git.
+3. **Open a terminal in the project folder.**
+   - macOS: type `cd ` (with a space), drag the folder onto the Terminal window, and press Enter.
+   - Windows: open the folder in File Explorer, click the address bar, type `powershell` and press Enter.
+4. **Start the app** with `npm run dev`, and open the `http://localhost:…` address it prints in Chrome, Safari, Firefox or Edge. Keep the terminal open while you work: it is the server.
+5. **Stop it** with **Ctrl + C** in the terminal, on macOS too. Closing the browser tab doesn't stop it.
 
-1. Click **Import** to load your line art, or drag an image onto the page or paste one. The **Demo** button loads a sample drawing. See [Choosing line art](#choosing-line-art) for what works best.
-2. Choose the canvas in the toolbar: portrait or landscape, a ratio, and a size.
-3. Adjust the picture. Drag to move and scroll to resize; the **Layers** list on the left picks what these gestures act on. See [Controls](#controls).
-4. Click **Export**, choose a format, and **Save**.
+If something goes wrong:
 
-### 5. Stop the app
+- *Port 5173 is in use*: another copy is still running. The server picks the next free port and prints it; open that one.
+- *The page stays on "Loading…"*: it was opened as a file (for example by double-clicking `index.html`). Start it with `npm run dev` and use the address it prints.
+- *`npm` is not found*: Node.js isn't installed yet, or the terminal was opened before installing it. Install it and open a new terminal.
 
-Go back to the terminal and press **Ctrl + C**, on macOS too. On Windows, answer `Y` if it asks "Terminate batch job?". Closing the browser tab does **not** stop the server. To use the app again later, repeat step 3.
-
-### Troubleshooting
-
-- **"Port 5173 is in use"**: another copy is still running, perhaps in another terminal window. The server moves to the next free port and prints that address; open that one, or stop the other copy with Ctrl + C.
-- **The page opens but stays on "Loading…"**, for example after double-clicking `index.html`: browsers won't run the app from a `file://` address. Start it with `npm run dev` and open the `http://localhost:…` address it prints.
-- **`npm: command not found`** (or "not recognized"): Node.js isn't installed, or the terminal was opened before installing it. Install Node.js, then open a new terminal.
-
-For developers: `npm test` runs the unit tests. No install is needed for those either.
+</details>
 
 ## How it works
 
-![The Chromallax interface: layers on the left, with Window 1 selected and its properties below, and the picture on the right with the window's handles](docs/images/interface.webp)
+<img src="docs/images/how-it-works.webp" width="330" align="right" alt="The window is the canvas scaled toward the focus point; every echo line lies further out than its ink line">
 
-Two copies of the same drawing sit at two depths:
+Two copies of the same drawing sit at two depths. The **ink** is the drawing shrunk toward a **focus point**. The **echo**, in magenta, is the full-size drawing, so it meets the ink at the focus point and drifts further out towards the edges, which is how something nearer to you looks. The blue **window** is the canvas shrunk the same way, so the ink hangs in it like a picture on a wall.
 
-- The **Echo** (magenta) is the line art as placed on the canvas.
-- The **Ink** (black) is the same art shrunk by the **depth** (about 1.21) toward a **focus point**.
-- The **Window** (blue) is the whole canvas shrunk the same way, so the ink sits on it like a picture on a wall.
+The colours help as well: saturated red tends to look nearer than blue.
 
-The window is optional, as the image at the top shows. Hide the windows, or delete them all, and the ink turns blue and sits straight on the black background, so only the lines float at two depths.
-
-There can also be more windows: rectangles and circles of any size, placed anywhere on the canvas, and rectangles can be turned. The ink shows through all of them, as if they were holes cut in one sheet.
-
-<img src="docs/images/how-it-works.webp" alt="The window is the canvas scaled toward the focus point; every echo line lies further out than its ink line" width="420" align="right">
-
-In the diagram, the cyan lines run from the focus point through the window's corners to the canvas corners. The window is the canvas scaled toward the focus point.
-
-The yellow arrows show where the echo sits relative to the ink. The two layers meet exactly at the focus point, and the gap between them grows steadily towards the edges. That is how an object looks as it comes closer to you, so the echo reads as a nearer copy of the drawing, lifting out of the window.
-
-The magenta-against-blue colours add to the depth: many people see saturated red as nearer than blue.
-
-Put the focus point on the feature that should stay sharp, usually an eye.
+Put the focus point on whatever should stay locked, usually an eye.
 
 <br clear="right">
 
-## Controls
+## Using it
 
-- **Toolbar**
-  - **Import** an image, or load the **Demo**, which opens filling the canvas.
-  - **Undo** and **redo** (⌘Z and ⇧⌘Z on a Mac, Ctrl+Z and Ctrl+Y elsewhere). A drag, a scroll or a slider move is one step. Loading an image starts the history over.
-  - Choose portrait or landscape, then a ratio. The labels follow the orientation: 3:4 in portrait, 4:3 in landscape. **Free** lets you type an exact width × height.
-  - Pick a size from the menu, which lists pixel dimensions (long edge 1080–3840 px).
-  - **Export** saves the picture as PNG, JPEG or WebP (with a quality setting), or the motion preview as a looping GIF at full, half or quarter size. In Chrome and Edge, **Save…** asks where to save the file and what to call it. Other browsers download it under the name you type in the menu.
-- **Layers**: a tree of **Figure** (with **Echo** and **Ink** under it) and **Windows** (with a row per window). The selected row is what the gestures on the picture act on.
-  - Drag, or use the arrow keys (Shift: 10 px), to move it.
-  - Scroll, pinch or press +/- to resize it. The Figure zooms around the pointer. Echo, Ink and all windows together resize around the focus point, so echo and ink stay aligned there.
-  - Resizing Echo or Ink changes the depth, shown on the Echo row.
-  - The zoom on the Figure row and the depth on the Echo row can be set directly: drag the number sideways (Shift: faster), or click it to type a value. A new depth resizes the echo, so the ink and the windows stay where they are.
-  - A moved layer shows ↺, which resets its position. The colour swatches set each layer's colour.
-- **Windows**: the ink shows only inside them. The Windows row adds a rectangle or a circle (**+**) and hides or shows all windows (the eye). With the Windows row selected, a drag moves all windows and scrolling resizes them.
-  - Click a window on the picture, or its row, to select it. Drag it to move it, and drag its handles to resize it, as in a slide editor: corners change both sides, edges one side. Hold Shift to keep the ratio, and Alt (Option on a Mac) to keep the centre. Drag the round knob above it to turn it (Shift: 15° steps). Scrolling resizes it around its own centre.
-  - Click beside the windows to deselect; a drag there then moves all of them. Delete removes the selected window, and so does the × on its row.
-  - Without any window, nothing is filled or clipped. Black ink would vanish on the black background, so it takes the window colour, and turns black again when a window comes back.
-- **Selected layer's properties**, below the tree
-  - **Figure**: line width. By default the ink's strokes shrink with the ink; **Same width in echo and ink** thickens them back. **Fill canvas** scales the figure to cover the canvas. The Figure row's ↺ brings back the whole figure, centred.
-  - **A window**: rectangle or circle, its size in pixels, and its rotation. **Match depth** turns it into the reference window: the canvas shrunk to 1 ÷ depth about the focus point. A window keeps its shape when you change the canvas ratio; only a window made with Match depth follows the canvas.
-- **Focus point**: drag the crosshair, or double-click the picture, to put it on the feature that should stay locked. The crosshair appears while the pointer is over the picture.
-- **Line extraction** (closed by default): polarity, threshold and softness, for images that don't come out clean. For a scan or a phone photo of a drawing:
-  - **Even out the paper's light** removes shading and uneven light, so one threshold fits the whole page.
-  - **Auto** picks the threshold between the lines and the paper, which helps with faint pencil.
-  - **Remove specks** clears dust and grain up to the size you set, and keeps long thin strokes.
-- **More** (closed by default): exact values for the figure's zoom and position and for the focus point.
-- **Motion** (closed by default): a looping preview of the picture as someone moving their head would see it. **Play** starts it. The windows stay still, like a window you look through: the ink moves behind them and the echo in front, in opposite directions. The move steps through a few views, like a wigglegram: **Wiggle** from left to right and back, **Orbit** round a circle, **Breathe** from far to near and back. **Views** is how many there are and **View time** how long each shows. **Shift** is how far the echo moves against the ink, and **Split** shares that move between them. The preview doesn't change the picture: the PNG, JPEG and WebP exports are the still one, and the GIF export saves the motion.
-- **Kept settings**: the browser remembers your canvas, colours, windows, depth, focus point and line width for the next visit. The image isn't kept, and neither are its placement and the line extraction settings, which belong to one image. **Reset to reference** brings back the reference look.
+<img src="docs/images/interface.webp" width="800" alt="The interface: layers on the left, the picture on the right with a window selected">
 
-## Choosing line art
+Load a drawing with **Import**, by dropping it on the page, or by pasting it. **Demo** loads a sample. Choose the canvas shape and size in the toolbar. Then:
 
-The effect relies on reading the two copies as the same strokes at two depths, so the input matters:
+- **Layers** pick what you move on the picture: the whole figure, the echo, the ink or the windows. Drag to move, and scroll or pinch to resize.
+- **Windows** are optional. Add rectangles and circles, and resize and turn them by their handles, as in a slide editor. The eye hides them all, which leaves lines on black.
+- **Depth** is the number on the Echo row. Drag it sideways, or click it and type.
+- **Motion** plays the picture as a wigglegram: stepping between a few views makes the two layers read as near and far.
+- **Export** saves PNG, JPEG or WebP, or the motion as a GIF. In Chrome and Edge you choose the name and folder.
 
-- Thin lines of even width work best. Small fills such as pupils are fine.
-- Large solid fills and heavy or strongly pressure-varying strokes flatten the depth. The status line says when more than 15 % of the ink is fills or heavy strokes.
-- Without a window, hatching and fills turn into areas of colour instead, which can work well. The status line doesn't warn then.
-- Clean backgrounds with no shading or texture are best. Any grey that crosses the threshold becomes line. For scans and photos of paper, see **Line extraction** above. Evening out the light treats any dark area wider than about 4 % of the image as shading, so large solid fills fade with it.
-- Images with transparency work too: whatever is opaque counts as line.
+Undo and redo work as usual, and the app remembers your canvas, colours and windows for next time.
 
-## Code
+<details>
+<summary><b>Mouse and keyboard</b></summary>
+
+| Do this | To |
+| --- | --- |
+| Drag, or arrow keys (Shift: 10 px) | Move the selected layer |
+| Scroll, pinch, or + / − | Resize it |
+| Drag the crosshair, or double-click | Move the focus point |
+| Shift while dragging a window's handle | Keep its ratio |
+| Alt (Option) while dragging a window's handle | Keep its centre |
+| Shift while turning a window | Turn in 15° steps |
+| Delete or Backspace | Remove the selected window |
+| Esc | Deselect the window |
+| ⌘Z / ⇧⌘Z (Ctrl+Z / Ctrl+Y) | Undo / redo |
+
+</details>
+
+## Getting a good result
+
+- **Line art**: thin lines of even width give the clearest depth. Large solid fills and heavy strokes flatten it, and the status line points that out.
+- **Without a window**, dense hatching and fills turn into areas of colour, which suits heavily shaded drawings.
+- **Scans and photos of drawings**: open **Line extraction**, turn on *Even out the paper's light*, press *Auto*, then *Remove specks*.
+
+  <img src="docs/images/scan.webp" width="520" alt="A phone photo of a pencil drawing, shaded and dusty, and the clean result">
+
+- **Photos** (experimental): switch **Line extraction** to *Photo*. It works best with a plain or blurred background, as in a phone's portrait mode. Every edge becomes a line, so a busy background gives busy lines.
+
+  <img src="docs/images/photo.webp" width="520" alt="A photo of a cat, and the cat drawn in two layers of lines">
+
+## Development
+
+`npm test` runs the unit tests with Node's built-in test runner. The app is plain HTML, CSS and ES modules, with no dependencies and no build.
+
+<details>
+<summary><b>Where things are</b></summary>
 
 | Path | Role |
 | --- | --- |
-| `src/app.js` | UI and staged re-rendering |
-| `src/config.js` | Defaults |
-| `src/history.js` | Undo history |
-| `src/settings.js` | Which settings are kept between visits, and checking them when they come back |
-| `src/geometry.js` | Pure layout math: canvas presets, placement, depth, focus point, windows and their handles |
-| `src/preprocess.js` | Pure pixel ops: line mask, stroke distance field, stroke statistics, line width |
-| `src/render.js` | Canvas compositing |
-| `src/gif.js` | Animated GIF encoding: palette, LZW, file layout |
-| `tests/` | `node:test` unit tests for the pure modules |
-| `scripts/serve.mjs` | The local development server |
-| `assets/demo.webp` | Demo line art (AI-generated) |
-| `docs/images/` | Images for this README |
+| `src/app.js` | Interface and staged re-rendering |
+| `src/config.js` | Defaults and ranges |
+| `src/geometry.js` | Layout: canvas, placement, depth, windows, motion |
+| `src/preprocess.js` | Line extraction and stroke width |
+| `src/photo.js` | Photo mode: lines along a photo's edges |
+| `src/render.js` | Drawing the layers |
+| `src/gif.js` | GIF encoding |
+| `src/history.js`, `src/settings.js` | Undo, and the settings kept between visits |
+| `tests/` | Unit tests for everything that doesn't need a browser |
+| `scripts/serve.mjs` | The local server |
+
+</details>
+
+## Credits
+
+- The demo drawing is AI-generated line art, free of copyright constraints.
+- The cat is *Tabby cat with blue eyes* by AdinaVoicu, [CC0](https://commons.wikimedia.org/wiki/File:Tabby_cat_with_blue_eyes-3336579.jpg), via Wikimedia Commons.
+- The pencil "scan" is the demo drawing, lightened, shaded and dusted in software.
