@@ -10,7 +10,7 @@
 
 <table>
   <tr>
-    <td><img src="docs/images/motion.gif" width="250" alt="绿色线条叠在蓝色窗口上的示例线稿，在两个视角之间来回切换"></td>
+    <td><img src="docs/images/motion.webp" width="250" alt="绿色线条叠在蓝色窗口上的示例线稿，在两个视角之间来回切换"></td>
     <td><img src="docs/images/windows.webp" width="250" alt="白色线条叠在三个蓝色圆形窗口和一个倾斜的矩形窗口上"></td>
     <td><img src="docs/images/no-window.webp" width="250" alt="黑色背景上红色线条叠在青色线条之上，无窗口"></td>
   </tr>
