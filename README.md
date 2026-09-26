@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 
 <img src="docs/images/hero.webp" width="800" alt="Line art on the left, then the result with the window and without it">
 
-It runs in your browser, with nothing to install beyond Node.js, and saves PNG, JPEG, WebP or a looping GIF.
+**[Try it online](https://ocnos936.github.io/Chromallax/)**: it runs in your browser, with nothing to install, and saves PNG, JPEG, WebP or a looping GIF.
 
 <table>
   <tr>
@@ -23,7 +23,9 @@ It runs in your browser, with nothing to install beyond Node.js, and saves PNG, 
 
 ## Quick start
 
-You need [Node.js](https://nodejs.org) 20 or later. In the project folder, run:
+Open <https://ocnos936.github.io/Chromallax/> in Chrome, Safari, Firefox or Edge. Your pictures stay in your browser: nothing is uploaded.
+
+To run it on your own computer instead, you need [Node.js](https://nodejs.org) 20 or later. In the project folder, run:
 
 ```bash
 npm run dev
@@ -134,3 +136,7 @@ Undo and redo work as usual, and the app remembers your canvas, colours and wind
 - The demo drawing is AI-generated line art, free of copyright constraints.
 - The cat is *Tabby cat with blue eyes* by AdinaVoicu, [CC0](https://commons.wikimedia.org/wiki/File:Tabby_cat_with_blue_eyes-3336579.jpg), via Wikimedia Commons.
 - The pencil "scan" is the demo drawing, lightened, shaded and dusted in software.
+
+## License
+
+[MIT](LICENSE) © 2026 Ruiqiang Liu

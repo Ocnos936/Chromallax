@@ -6,7 +6,7 @@
 
 <img src="docs/images/hero.webp" width="800" alt="左侧为原始线稿，右侧分别为带窗口和不带窗口的效果">
 
-应用在浏览器中运行，只需安装 Node.js，支持导出 PNG、JPEG、WebP 图片和循环播放的 GIF 动图。
+**[在线使用](https://ocnos936.github.io/Chromallax/)**：直接在浏览器中运行，无需安装任何软件，支持导出 PNG、JPEG、WebP 图片和循环播放的 GIF 动图。
 
 <table>
   <tr>
@@ -23,7 +23,9 @@
 
 ## 快速开始
 
-需要 [Node.js](https://nodejs.org) 20 或更高版本。在项目文件夹中运行：
+在 Chrome、Safari、Firefox 或 Edge 中打开 <https://ocnos936.github.io/Chromallax/> 即可使用。图片只在浏览器本地处理，不会上传。
+
+如果想在自己的电脑上运行，需要 [Node.js](https://nodejs.org) 20 或更高版本。在项目文件夹中运行：
 
 ```bash
 npm run dev
@@ -134,3 +136,7 @@ npm run dev
 - 示例线稿由 AI 生成，不受版权限制。
 - 猫的照片为 AdinaVoicu 拍摄的 *Tabby cat with blue eyes*，来自 Wikimedia Commons，采用 [CC0](https://commons.wikimedia.org/wiki/File:Tabby_cat_with_blue_eyes-3336579.jpg) 许可。
 - 铅笔“扫描件”为模拟图像：由示例线稿经程序调淡，并添加阴影和灰尘生成。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 Ruiqiang Liu
