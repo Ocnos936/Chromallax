@@ -108,7 +108,10 @@ Put the focus point on the feature that should stay sharp, usually an eye.
   - **Figure**: line width. By default the ink's strokes shrink with the ink; **Same width in echo and ink** thickens them back. **Fill canvas** scales the figure to cover the canvas. The Figure row's ↺ brings back the whole figure, centred.
   - **A window**: rectangle or circle, its size in pixels, and its rotation. **Match depth** turns it into the reference window: the canvas shrunk to 1 ÷ depth about the focus point. A window keeps its shape when you change the canvas ratio; only a window made with Match depth follows the canvas.
 - **Focus point**: drag the crosshair, or double-click the picture, to put it on the feature that should stay locked. The crosshair appears while the pointer is over the picture.
-- **Line extraction** (closed by default): polarity, threshold and softness, for images that don't come out clean.
+- **Line extraction** (closed by default): polarity, threshold and softness, for images that don't come out clean. For a scan or a phone photo of a drawing:
+  - **Even out the paper's light** removes shading and uneven light, so one threshold fits the whole page.
+  - **Auto** picks the threshold between the lines and the paper, which helps with faint pencil.
+  - **Remove specks** clears dust and grain up to the size you set, and keeps long thin strokes.
 - **More** (closed by default): exact values for the figure's zoom and position and for the focus point.
 - **Motion** (closed by default): a looping preview of the picture as someone moving their head would see it. **Play** starts it. The windows stay still, like a window you look through: the ink moves behind them and the echo in front, in opposite directions. The move steps through a few views, like a wigglegram: **Wiggle** from left to right and back, **Orbit** round a circle, **Breathe** from far to near and back. **Views** is how many there are and **View time** how long each shows. **Shift** is how far the echo moves against the ink, and **Split** shares that move between them. The preview doesn't change the picture: the PNG, JPEG and WebP exports are the still one, and the GIF export saves the motion.
 - **Kept settings**: the browser remembers your canvas, colours, windows, depth, focus point and line width for the next visit. The image isn't kept, and neither are its placement and the line extraction settings, which belong to one image. **Reset to reference** brings back the reference look.
@@ -120,7 +123,7 @@ The effect relies on reading the two copies as the same strokes at two depths, s
 - Thin lines of even width work best. Small fills such as pupils are fine.
 - Large solid fills and heavy or strongly pressure-varying strokes flatten the depth. The status line says when more than 15 % of the ink is fills or heavy strokes.
 - Without a window, hatching and fills turn into areas of colour instead, which can work well. The status line doesn't warn then.
-- Clean backgrounds with no shading or texture are best. Any grey that crosses the threshold becomes line.
+- Clean backgrounds with no shading or texture are best. Any grey that crosses the threshold becomes line. For scans and photos of paper, see **Line extraction** above. Evening out the light treats any dark area wider than about 4 % of the image as shading, so large solid fills fade with it.
 - Images with transparency work too: whatever is opaque counts as line.
 
 ## Code

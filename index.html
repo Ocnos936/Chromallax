@@ -195,14 +195,23 @@
               <option value="light">Light on dark</option>
             </select>
           </label>
-          <label class="field">
-            <span>Threshold <output data-for="threshold"></output></span>
-            <input type="range" data-param="threshold" min="0" max="255" step="1" />
-          </label>
+          <label class="check" title="For scans and phone photos of paper: shading and uneven light are divided out, so one threshold fits the whole page"><input type="checkbox" data-param="flatten" /> Even out the paper's light</label>
+          <div class="field">
+            <span>
+              <label for="threshold">Threshold</label>
+              <span class="value"><button type="button" class="chip" id="auto-threshold" title="Pick the threshold between the lines and the paper">Auto</button><output data-for="threshold"></output></span>
+            </span>
+            <input type="range" id="threshold" data-param="threshold" min="0" max="255" step="1" />
+          </div>
           <label class="field">
             <span>Softness <output data-for="softness"></output></span>
             <input type="range" data-param="softness" min="0" max="128" step="1" />
           </label>
+          <label class="field">
+            <span>Remove specks <output data-for="specks"></output></span>
+            <input type="range" data-param="specks" step="1" />
+          </label>
+          <p class="note">For a scan or a photo of paper: even out the light, press Auto, then remove specks of dust and grain.</p>
         </div>
       </details>
 

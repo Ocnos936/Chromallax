@@ -21,6 +21,8 @@ export const DEFAULTS = Object.freeze({
   threshold: 180, // luminance (0–255) separating line from background
   softness: 48, // width of the anti-aliasing ramp around the threshold
   invert: 'auto', // 'auto' | 'dark' (dark lines on light) | 'light' (light lines on dark)
+  flatten: false, // divide out the paper's uneven light (scans, phone photos of paper)
+  specks: 0, // remove marks up to this many source px across; 0 = keep everything
 
   // Depth: the magenta copy is the placed art, the black copy is it shrunk by 1/depth
   // about the fixed point.
@@ -72,6 +74,7 @@ export const RANGES = Object.freeze({
   panelSide: [0.02, 3], // window width and height, in canvas short edges
   offset: [-2, 2], // echo and ink shifts, as canvas fractions
   lineWidth: [0.3, 3],
+  specks: [0, 40],
   freeWidth: [100, 4096], // 4096² is about the largest canvas every browser allows
   freeHeight: [100, 4096],
   motionShift: [0.001, 0.02], // a small shift reads as depth, a big one as two pictures

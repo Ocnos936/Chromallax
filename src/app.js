@@ -12,7 +12,7 @@ import {
 } from './geometry.js';
 import { encodeGif } from './gif.js';
 import { History } from './history.js';
-import { lineMask, offsetCoverage, strokeField, strokeOffsets } from './preprocess.js';
+import { inkLevels, maskFromLevels, offsetCoverage, otsuThreshold, strokeField, strokeOffsets } from './preprocess.js';
 import { maskToCanvas, tint, drawComposite } from './render.js';
 import { keptSettings, readExportOptions, readSettings } from './settings.js';
 
@@ -45,6 +45,7 @@ const state = {
   notice: '', // error that should stay visible while the current image is shown
   image: null, // ImageBitmap | HTMLImageElement | HTMLCanvasElement, untouched source
   source: null, // source scaled so its long edge is within [MIN_SOURCE_EDGE, MAX_SOURCE_EDGE]
+  levels: null, // inkLevels() of the source: grey levels with the lines dark
   field: null, // strokeField() of the line mask, plus the mask's polarity info
   masks: { primary: null, secondary: null }, // alpha-only canvases at the current line width
   layers: { primary: document.createElement('canvas'), secondary: document.createElement('canvas') },
@@ -65,13 +66,17 @@ const activePanel = () =>
 
 // Pipeline stages, earliest first. A parameter invalidates its stage and all later
 // ones; parameters not listed (canvas, placement, windows, the window colour) only
-// recomposite. Depth reshapes the black strokes only while equalWidth is on.
-const STAGES = ['source', 'mask', 'weight', 'tint', 'composite'];
-const [SOURCE, MASK, WEIGHT, TINT] = [0, 1, 2, 3];
+// recomposite. Depth reshapes the black strokes only while equalWidth is on. The grey
+// levels are their own stage so that dragging the threshold doesn't redo the
+// background flattening.
+const STAGES = ['source', 'levels', 'mask', 'weight', 'tint', 'composite'];
+const [SOURCE, LEVELS, MASK, WEIGHT, TINT] = [0, 1, 2, 3, 4];
 const STAGE_OF = {
+  invert: 'levels',
+  flatten: 'levels',
   threshold: 'mask',
   softness: 'mask',
-  invert: 'mask',
+  specks: 'mask',
   lineWidth: 'weight',
   equalWidth: 'weight',
   primary: 'tint',
@@ -102,6 +107,7 @@ function runPixels() {
   dirtyFrom = STAGES.length;
   try {
     if (from <= SOURCE) prepareSource();
+    if (from <= LEVELS) computeLevels();
     if (from <= MASK) computeField();
     // A new image with lots of heavy ink may need a different threshold: surface those controls.
     if (from <= SOURCE && heavyInk()) $('#extraction').open = true;
@@ -134,10 +140,15 @@ function prepareSource() {
   state.source = canvas;
 }
 
-function computeField() {
+function computeLevels() {
   const { width, height } = state.source;
   const pixels = state.source.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
-  const { mask, lightLines, usedAlpha } = lineMask(pixels, params);
+  state.levels = inkLevels(pixels, params);
+}
+
+function computeField() {
+  const { width, height } = state.source;
+  const { mask, lightLines, usedAlpha } = maskFromLevels(state.levels, params);
   state.field = { ...strokeField(mask, width, height), width, height, lightLines, usedAlpha };
 }
 
@@ -209,6 +220,7 @@ const FORMAT = {
   depth: (v) => `×${v.toFixed(3)}`,
   centerX: (v) => v.toFixed(3),
   centerY: (v) => v.toFixed(3),
+  specks: (v) => (v ? `up to ${v} px` : 'off'),
   lineWidth: (v) => `×${v.toFixed(2)}${state.linePx ? ` · ${state.linePx.toFixed(1)} px` : ''}`,
   motionShift: (v) => {
     const { width, height } = canvasDims();
@@ -388,6 +400,18 @@ function setArt({ artX, artY, artScale }) {
   syncControls();
   invalidate('composite');
 }
+
+// Auto threshold: Otsu's split of the current grey levels (flattened or not).
+$('#auto-threshold').addEventListener('click', () => {
+  if (!state.image) return;
+  if (dirtyFrom <= LEVELS) {
+    clearTimeout(timer);
+    runPixels(); // levels still waiting for the debounce
+  }
+  params.threshold = Math.round(clamp(otsuThreshold(state.levels.gray), [0, 255]));
+  syncControls();
+  invalidate('mask');
+});
 
 $('#fill').addEventListener('click', () => {
   if (!state.source) return;
