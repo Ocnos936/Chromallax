@@ -10,14 +10,14 @@
 
 <table>
   <tr>
-    <td><img src="docs/images/motion.gif" width="250" alt="示例线稿在两个视角之间来回切换"></td>
-    <td><img src="docs/images/windows.webp" width="250" alt="三个圆形窗口和一个倾斜的矩形窗口"></td>
-    <td><img src="docs/images/red-blue.webp" width="250" alt="黑色背景上红色线条叠在蓝色线条之上，无窗口"></td>
+    <td><img src="docs/images/motion.gif" width="250" alt="绿色线条叠在蓝色窗口上的示例线稿，在两个视角之间来回切换"></td>
+    <td><img src="docs/images/windows.webp" width="250" alt="白色线条叠在三个蓝色圆形窗口和一个倾斜的矩形窗口上"></td>
+    <td><img src="docs/images/no-window.webp" width="250" alt="黑色背景上红色线条叠在青色线条之上，无窗口"></td>
   </tr>
   <tr>
-    <td align="center">动态效果，导出为 GIF</td>
-    <td align="center">任意形状的窗口</td>
-    <td align="center">红蓝配色，无窗口</td>
+    <td align="center">动态效果，导出为 GIF<br>绿配蓝</td>
+    <td align="center">任意形状的窗口<br>白配蓝</td>
+    <td align="center">无窗口<br>红配青</td>
   </tr>
 </table>
 

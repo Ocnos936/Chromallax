@@ -10,14 +10,14 @@ It runs in your browser, with nothing to install beyond Node.js, and saves PNG, 
 
 <table>
   <tr>
-    <td><img src="docs/images/motion.gif" width="250" alt="The demo drawing wiggling between two views"></td>
-    <td><img src="docs/images/windows.webp" width="250" alt="Three round windows and a turned rectangle"></td>
-    <td><img src="docs/images/red-blue.webp" width="250" alt="Red lines over blue lines on black, with no window"></td>
+    <td><img src="docs/images/motion.gif" width="250" alt="The demo drawing in green over a blue window, wiggling between two views"></td>
+    <td><img src="docs/images/windows.webp" width="250" alt="White lines over three round blue windows and a turned rectangle"></td>
+    <td><img src="docs/images/no-window.webp" width="250" alt="Red lines over cyan lines on black, with no window"></td>
   </tr>
   <tr>
-    <td align="center">Wiggle, saved as a GIF</td>
-    <td align="center">Windows of any shape</td>
-    <td align="center">Red and blue, no window</td>
+    <td align="center">Wiggle, saved as a GIF<br>green over blue</td>
+    <td align="center">Windows of any shape<br>white over blue</td>
+    <td align="center">No window<br>red over cyan</td>
   </tr>
 </table>
 
