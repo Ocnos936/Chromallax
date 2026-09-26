@@ -21,6 +21,9 @@ export const DEFAULTS = Object.freeze({
   threshold: 180, // luminance (0–255) separating line from background
   softness: 48, // width of the anti-aliasing ramp around the threshold
   invert: 'auto', // 'auto' | 'dark' (dark lines on light) | 'light' (light lines on dark)
+  extraction: 'lineart', // 'lineart' | 'photo' (lines drawn along a photo's edges; experimental)
+  photoDetail: 1, // photo mode: finer lines above 1, bolder and fewer below
+  photoFlow: true, // photo mode: sum the lines along the edge flow, for long coherent strokes
   flatten: false, // divide out the paper's uneven light (scans, phone photos of paper)
   specks: 0, // remove marks up to this many source px across; 0 = keep everything
 
@@ -75,6 +78,7 @@ export const RANGES = Object.freeze({
   offset: [-2, 2], // echo and ink shifts, as canvas fractions
   lineWidth: [0.3, 3],
   specks: [0, 40],
+  photoDetail: [0.4, 2],
   freeWidth: [100, 4096], // 4096² is about the largest canvas every browser allows
   freeHeight: [100, 4096],
   motionShift: [0.001, 0.02], // a small shift reads as depth, a big one as two pictures
@@ -94,6 +98,17 @@ export const REFERENCE_KEYS = Object.freeze([
   'lineWidth', 'equalWidth', 'background', 'panel', 'primary', 'secondary',
 ]);
 
+// Photo mode works on the photo scaled to this long edge, so Detail means the same for
+// any photo size and the time stays bounded; PHOTO_SIGMA / photoDetail is the DoG's
+// centre sigma there (px). Each extraction mode starts from its own threshold and
+// speck setting.
+export const PHOTO_EDGE = 1200;
+export const PHOTO_SIGMA = 1.2;
+export const EXTRACTION_START = Object.freeze({
+  lineart: Object.freeze({ threshold: 180, specks: 0 }),
+  photo: Object.freeze({ threshold: 185, specks: 10 }),
+});
+
 // Export: the file formats, and the options the export menu starts with. A GIF is the
 // motion preview, at a share of the canvas size.
 export const EXPORT_FORMATS = Object.freeze(['png', 'jpeg', 'webp', 'gif']);
@@ -110,3 +125,6 @@ export const MAX_SOURCE_EDGE = 3200;
 // Above this share of "heavy" ink (fills, fat strokes) the status line suggests thinner art.
 // Not without a window: there, hatching and fills read as tone rather than flattening the depth.
 export const HEAVY_SHARE_HINT = 0.15;
+// Beyond this, line-art mode is probably looking at a photo or a painting: the hint
+// points to Photo mode. (A synthetic phone photo of paper measured 78 %.)
+export const PHOTO_HINT = 0.5;

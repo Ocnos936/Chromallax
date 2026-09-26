@@ -187,7 +187,11 @@
       <details id="extraction">
         <summary>Line extraction</summary>
         <div class="body">
-          <label class="field">
+          <div class="segmented plain" role="radiogroup" aria-label="What the image is">
+            <label><input type="radio" name="extraction" data-param="extraction" value="lineart" /><span>Line art</span></label>
+            <label title="Experimental: lines drawn along the photo's edges"><input type="radio" name="extraction" data-param="extraction" value="photo" /><span>Photo</span></label>
+          </div>
+          <label class="field" data-extraction="lineart">
             <span>Lines</span>
             <select data-param="invert">
               <option value="auto">Auto-detect</option>
@@ -195,7 +199,12 @@
               <option value="light">Light on dark</option>
             </select>
           </label>
-          <label class="check" title="For scans and phone photos of paper: shading and uneven light are divided out, so one threshold fits the whole page"><input type="checkbox" data-param="flatten" /> Even out the paper's light</label>
+          <label class="check" data-extraction="lineart" title="For scans and phone photos of paper: shading and uneven light are divided out, so one threshold fits the whole page"><input type="checkbox" data-param="flatten" /> Even out the paper's light</label>
+          <label class="field" data-extraction="photo">
+            <span>Detail <output data-for="photoDetail"></output></span>
+            <input type="range" data-param="photoDetail" step="0.05" />
+          </label>
+          <label class="check" data-extraction="photo" title="Sum the lines along the edges, for long coherent strokes; off, a plain difference of Gaussians"><input type="checkbox" data-param="photoFlow" /> Follow the edges</label>
           <div class="field">
             <span>
               <label for="threshold">Threshold</label>
@@ -211,7 +220,8 @@
             <span>Remove specks <output data-for="specks"></output></span>
             <input type="range" data-param="specks" step="1" />
           </label>
-          <p class="note">For a scan or a photo of paper: even out the light, press Auto, then remove specks of dust and grain.</p>
+          <p class="note" data-extraction="lineart">For a scan or a photo of paper: even out the light, press Auto, then remove specks of dust and grain.</p>
+          <p class="note" data-extraction="photo">Experimental. Best on a plain or blurred background, as in a phone's portrait mode: every edge becomes a line, so a busy background gives busy lines. Threshold sets how many lines there are.</p>
         </div>
       </details>
 
