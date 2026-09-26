@@ -8,7 +8,11 @@
   </head>
   <body>
     <header class="toolbar">
-      <h1>Chromallax</h1>
+      <h1>
+        <svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="1.5" fill="#0b03f6" /><rect x="2.5" y="2.5" width="15" height="15" rx="2.5" fill="none" stroke="#f0087d" stroke-width="1.6" /></svg>
+        Chromallax
+      </h1>
+      <span class="divider" aria-hidden="true"></span>
       <div class="group pair">
         <button type="button" id="open">Import</button>
         <button type="button" id="demo">Demo</button>
@@ -22,6 +26,7 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.5 3.5 3 3-3 3" /><path d="M13.5 6.5h-7a4 4 0 0 0 0 8H9" /></svg>
         </button>
       </div>
+      <span class="divider" aria-hidden="true"></span>
       <div class="segmented orientation" id="orientation" role="radiogroup" aria-label="Orientation">
         <label title="Portrait"><input type="radio" name="orientation" data-param="orientation" value="portrait" aria-label="Portrait" /><span style="--w: 9px; --h: 12px"></span></label>
         <label title="Landscape"><input type="radio" name="orientation" data-param="orientation" value="landscape" aria-label="Landscape" /><span style="--w: 14px; --h: 9px"></span></label>
@@ -40,7 +45,34 @@
         <input type="number" data-param="freeHeight" min="100" max="4096" step="1" aria-label="Canvas height in px" />
         <span class="unit">px</span>
       </div>
-      <button type="button" id="export" class="primary">Download PNG</button>
+      <button type="button" id="export" class="primary" popovertarget="export-menu">Export</button>
+      <div class="menu" id="export-menu" popover>
+        <div class="segmented plain" role="radiogroup" aria-label="Format">
+          <label title="Lossless, the full picture"><input type="radio" name="exportFormat" value="png" /><span>PNG</span></label>
+          <label title="Smaller, slightly lossy"><input type="radio" name="exportFormat" value="jpeg" /><span>JPEG</span></label>
+          <label title="Smaller, slightly lossy"><input type="radio" name="exportFormat" value="webp" /><span>WebP</span></label>
+          <label title="The motion preview, looping"><input type="radio" name="exportFormat" value="gif" /><span>GIF</span></label>
+        </div>
+        <label class="field" id="quality-field">
+          <span>Quality <output id="quality-out"></output></span>
+          <input type="range" id="quality" step="0.01" />
+        </label>
+        <div class="field inline" id="gif-field">
+          <span>Size</span>
+          <div class="segmented plain" role="radiogroup" aria-label="GIF size">
+            <label><input type="radio" name="gifScale" value="1" /><span>100%</span></label>
+            <label><input type="radio" name="gifScale" value="0.5" /><span>50%</span></label>
+            <label><input type="radio" name="gifScale" value="0.25" /><span>25%</span></label>
+          </div>
+        </div>
+        <label class="field" id="name-field">
+          <span>File name</span>
+          <span class="file-name"><input type="text" id="file-name" spellcheck="false" autocomplete="off" /><span id="file-ext"></span></span>
+        </label>
+        <p class="note" id="export-info"></p>
+        <button type="button" id="save" class="primary"></button>
+        <p class="note" id="export-status" role="status"></p>
+      </div>
     </header>
 
     <aside class="controls">
@@ -109,79 +141,125 @@
           </label>
           <div class="actions">
             <button type="button" id="match-depth" title="Make this the reference window: the canvas shrunk to 1 ÷ depth about the focus point">Match depth</button>
-            <button type="button" id="remove-panel" title="Delete this window (Delete key)">Delete</button>
+            <button type="button" id="remove-panel" class="danger" title="Delete this window (Delete key)">Delete</button>
           </div>
         </div>
       </section>
 
+      <details id="motion">
+        <summary>Motion</summary>
+        <div class="body">
+          <div class="motion-bar">
+            <button type="button" class="icon" id="play" aria-pressed="false" aria-label="Play" title="Play">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path class="play" d="M5 3.2v9.6L12.6 8Z" /><path class="pause" d="M5 3.5h2v9H5zM9 3.5h2v9H9z" /></svg>
+            </button>
+            <div class="segmented plain" role="radiogroup" aria-label="Camera path">
+              <label title="Steps from left to right and back, like a wigglegram"><input type="radio" name="motionPath" data-param="motionPath" value="wiggle" /><span>Wiggle</span></label>
+              <label title="Steps round a circle"><input type="radio" name="motionPath" data-param="motionPath" value="orbit" /><span>Orbit</span></label>
+              <label title="Steps from far to near and back"><input type="radio" name="motionPath" data-param="motionPath" value="breathe" /><span>Breathe</span></label>
+            </div>
+          </div>
+          <div class="field inline">
+            <span>Views</span>
+            <div class="segmented plain" role="radiogroup" aria-label="Views">
+              <label><input type="radio" name="motionViews" data-param="motionViews" data-type="number" value="2" /><span>2</span></label>
+              <label><input type="radio" name="motionViews" data-param="motionViews" data-type="number" value="3" /><span>3</span></label>
+              <label><input type="radio" name="motionViews" data-param="motionViews" data-type="number" value="4" /><span>4</span></label>
+              <label><input type="radio" name="motionViews" data-param="motionViews" data-type="number" value="5" /><span>5</span></label>
+            </div>
+          </div>
+          <label class="field">
+            <span>Shift <output data-for="motionShift"></output></span>
+            <input type="range" data-param="motionShift" step="0.0005" />
+          </label>
+          <label class="field">
+            <span>View time <output data-for="motionViewTime"></output></span>
+            <input type="range" data-param="motionViewTime" step="0.01" />
+          </label>
+          <label class="field">
+            <span>Split <output data-for="motionPivot"></output></span>
+            <input type="range" data-param="motionPivot" step="0.05" />
+          </label>
+          <p class="note">The windows stay still: the ink moves behind them and the echo in front. Split shares the shift between the two.</p>
+        </div>
+      </details>
+
       <details id="extraction">
         <summary>Line extraction</summary>
-        <label class="field">
-          <span>Lines</span>
-          <select data-param="invert">
-            <option value="auto">Auto-detect</option>
-            <option value="dark">Dark on light</option>
-            <option value="light">Light on dark</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Threshold <output data-for="threshold"></output></span>
-          <input type="range" data-param="threshold" min="0" max="255" step="1" />
-        </label>
-        <label class="field">
-          <span>Softness <output data-for="softness"></output></span>
-          <input type="range" data-param="softness" min="0" max="128" step="1" />
-        </label>
+        <div class="body">
+          <label class="field">
+            <span>Lines</span>
+            <select data-param="invert">
+              <option value="auto">Auto-detect</option>
+              <option value="dark">Dark on light</option>
+              <option value="light">Light on dark</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Threshold <output data-for="threshold"></output></span>
+            <input type="range" data-param="threshold" min="0" max="255" step="1" />
+          </label>
+          <label class="field">
+            <span>Softness <output data-for="softness"></output></span>
+            <input type="range" data-param="softness" min="0" max="128" step="1" />
+          </label>
+        </div>
       </details>
 
       <details>
         <summary>More</summary>
-        <label class="field">
-          <span>Figure zoom <output data-for="artScale"></output></span>
-          <input type="range" data-param="artScale" step="0.01" />
-        </label>
-        <label class="field">
-          <span>Figure X <output data-for="artX"></output></span>
-          <input type="range" data-param="artX" step="0.001" />
-        </label>
-        <label class="field">
-          <span>Figure Y <output data-for="artY"></output></span>
-          <input type="range" data-param="artY" step="0.001" />
-        </label>
-        <label class="field">
-          <span>Focus point X <output data-for="centerX"></output></span>
-          <input type="range" data-param="centerX" min="0" max="1" step="0.001" />
-        </label>
-        <label class="field">
-          <span>Focus point Y <output data-for="centerY"></output></span>
-          <input type="range" data-param="centerY" min="0" max="1" step="0.001" />
-        </label>
+        <div class="body">
+          <label class="field">
+            <span>Figure zoom <output data-for="artScale"></output></span>
+            <input type="range" data-param="artScale" step="0.01" />
+          </label>
+          <label class="field">
+            <span>Figure X <output data-for="artX"></output></span>
+            <input type="range" data-param="artX" step="0.001" />
+          </label>
+          <label class="field">
+            <span>Figure Y <output data-for="artY"></output></span>
+            <input type="range" data-param="artY" step="0.001" />
+          </label>
+          <label class="field">
+            <span>Focus point X <output data-for="centerX"></output></span>
+            <input type="range" data-param="centerX" min="0" max="1" step="0.001" />
+          </label>
+          <label class="field">
+            <span>Focus point Y <output data-for="centerY"></output></span>
+            <input type="range" data-param="centerY" min="0" max="1" step="0.001" />
+          </label>
+        </div>
       </details>
 
       <footer>
-        <button type="button" id="reset">Reset to reference</button>
+        <button type="button" id="reset" class="quiet">Reset to reference</button>
       </footer>
     </aside>
 
     <main class="stage" id="stage">
-      <div class="frame" id="frame">
-        <canvas id="output" tabindex="0" aria-label="Rendered illustration" aria-describedby="gesture-hint"></canvas>
-        <div class="crosshair" id="crosshair" aria-hidden="true"></div>
-        <div class="selection" id="selection" aria-hidden="true" hidden>
-          <b class="stem"></b>
-          <i class="knob"></i>
-          <i class="corner" style="left: 0; top: 0"></i>
-          <i class="edge" style="left: 50%; top: 0"></i>
-          <i class="corner" style="left: 100%; top: 0"></i>
-          <i class="edge" style="left: 0; top: 50%"></i>
-          <i class="edge" style="left: 100%; top: 50%"></i>
-          <i class="corner" style="left: 0; top: 100%"></i>
-          <i class="edge" style="left: 50%; top: 100%"></i>
-          <i class="corner" style="left: 100%; top: 100%"></i>
+      <div class="viewport">
+        <div class="frame" id="frame">
+          <canvas id="output" tabindex="0" aria-label="Rendered illustration" aria-describedby="gesture-hint"></canvas>
+          <div class="crosshair" id="crosshair" aria-hidden="true"></div>
+          <div class="selection" id="selection" aria-hidden="true" hidden>
+            <b class="stem"></b>
+            <i class="knob"></i>
+            <i class="corner" style="left: 0; top: 0"></i>
+            <i class="edge" style="left: 50%; top: 0"></i>
+            <i class="corner" style="left: 100%; top: 0"></i>
+            <i class="edge" style="left: 0; top: 50%"></i>
+            <i class="edge" style="left: 100%; top: 50%"></i>
+            <i class="corner" style="left: 0; top: 100%"></i>
+            <i class="edge" style="left: 50%; top: 100%"></i>
+            <i class="corner" style="left: 100%; top: 100%"></i>
+          </div>
         </div>
       </div>
-      <p class="status" id="status" role="status">Loading…</p>
-      <p class="gesture-hint" id="gesture-hint"></p>
+      <div class="captions">
+        <p class="status" id="status" role="status">Loading…</p>
+        <p class="gesture-hint" id="gesture-hint"></p>
+      </div>
     </main>
 
     <script type="module" src="src/app.js"></script>

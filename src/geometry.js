@@ -299,6 +299,50 @@ export function rotatePanel(panel, from, to, { width, height }, step = 0) {
   return { ...panel, angle: angle === -180 ? 180 : angle };
 }
 
+// ---- Motion -------------------------------------------------------------------
+// A looping camera move, as in a wigglegram. The windows are the stereo window: they,
+// the background and the canvas edge stay put, the ink (behind them, since they clip
+// it) moves one way, and the echo (in front, since it covers their edges) the other.
+// `motionPivot` places the windows between the ink (0) and the echo (1): the nearer
+// a layer is to them, the less it moves.
+
+// The views a path steps through, in play order: a wiggle and a breath go there and
+// back (1-2-3-4-3-2), an orbit keeps going round.
+export function motionOrder({ motionPath, motionViews }) {
+  const views = [...Array(motionViews).keys()];
+  return motionPath === 'orbit' ? views : [...views, ...views.slice(1, -1).reverse()];
+}
+
+/** Seconds per loop: every view shows for `motionViewTime`. */
+export function motionLoop(p) {
+  return motionOrder(p).length * p.motionViewTime;
+}
+
+/**
+ * The layout from computeLayout at `phase` (0 to 1, one loop). Each path steps through
+ * `motionViews` views: 'wiggle' from left to right and back, 'orbit' round a circle, and
+ * 'breathe' from far to near and back. `motionShift` is how far the echo shifts against
+ * the ink from one end of the move to the other (the orbit's diameter), in canvas short
+ * edges; for 'breathe', half a short edge from the focus point.
+ */
+export function moveLayout(layout, phase, p, { width, height }) {
+  const order = motionOrder(p);
+  const view = order[Math.floor((phase % 1) * order.length)];
+  const across = view / (p.motionViews - 1) - 0.5; // from −1/2 to 1/2 over the views
+  const [echo, ink] = [1 - p.motionPivot, -p.motionPivot]; // shares of the echo-against-ink move
+  if (p.motionPath === 'breathe') {
+    const k = 1 + 2 * p.motionShift * across; // echo size against the ink
+    const c = layout.center;
+    const about = (r, s) => ({ x: c.x + (r.x - c.x) * s, y: c.y + (r.y - c.y) * s, w: r.w * s, h: r.h * s });
+    return { ...layout, secondary: about(layout.secondary, k ** echo), primary: about(layout.primary, k ** ink) };
+  }
+  const turn = (2 * Math.PI * view) / p.motionViews;
+  const at = p.motionPath === 'orbit' ? [Math.cos(turn) / 2, Math.sin(turn) / 2] : [across, 0]; // echo against ink, as a share of the shift
+  const total = p.motionShift * Math.min(width, height);
+  const shift = (r, share) => ({ ...r, x: r.x + at[0] * total * share, y: r.y + at[1] * total * share });
+  return { ...layout, secondary: shift(layout.secondary, echo), primary: shift(layout.primary, ink) };
+}
+
 /** Round a rect's edges to whole pixels so a flat fill has crisp borders. */
 export function snapRect({ x, y, w, h }) {
   const x0 = Math.round(x);

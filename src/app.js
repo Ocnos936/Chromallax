@@ -3,15 +3,18 @@
 // can be moved and zoomed. Pixel work (thresholding, the stroke distance field,
 // line width) is debounced; every other change recomposites cached layer
 // canvases per frame.
-import { DEFAULTS, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, RANGES, REFERENCE_KEYS, SIZES } from './config.js';
 import {
-  RATIOS, canvasSize, computeLayout, fillScale, movePanels, panelAt, panelBox, panelHandles, ratioLabel,
-  referencePanel, resizePanel, rotatePanel, scaleLayer, scalePanels,
+  DEFAULTS, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, PATH_VIEWS, QUALITY_RANGE, RANGES, REFERENCE_KEYS, SIZES,
+} from './config.js';
+import {
+  RATIOS, canvasSize, computeLayout, fillScale, motionLoop, motionOrder, moveLayout, movePanels, panelAt, panelBox,
+  panelHandles, ratioLabel, referencePanel, resizePanel, rotatePanel, scaleLayer, scalePanels,
 } from './geometry.js';
+import { encodeGif } from './gif.js';
 import { History } from './history.js';
 import { lineMask, offsetCoverage, strokeField, strokeOffsets } from './preprocess.js';
 import { maskToCanvas, tint, drawComposite } from './render.js';
-import { keptSettings, readSettings } from './settings.js';
+import { keptSettings, readExportOptions, readSettings } from './settings.js';
 
 const $ = (selector) => document.querySelector(selector);
 const output = $('#output');
@@ -48,6 +51,9 @@ const state = {
   ready: false, // layers exist for the current image
   linePx: 0, // magenta stroke width in output px, for the line-width readout
   selectedPanel: null, // index of the window being edited while the Windows layer is picked; null = all
+  playing: false, // the motion preview runs
+  phase: 0, // where it is in the loop, 0 to 1
+  lastTime: 0, // the previous frame's time, in ms
 };
 
 // No windows, or hidden ones: nothing is filled or clipped, and the Windows layer has nothing to act on.
@@ -150,18 +156,22 @@ function tintLayers() {
   tint(state.masks.secondary, params.secondary, state.layers.secondary);
 }
 
-function composite() {
+// Draw the picture: the still one, or while the motion preview runs (and `still` isn't
+// set) its current frame. The readouts and the status line always describe the still one.
+function composite({ still = false } = {}) {
   const { width, height } = canvasDims();
   if (output.width !== width || output.height !== height) {
     output.width = width;
     output.height = height;
   }
   const { width: artWidth, height: artHeight } = state.source;
-  const layout = computeLayout({ ...params, width, height, artWidth, artHeight });
+  const size = { width, height, artWidth, artHeight };
+  const layout = computeLayout({ ...params, ...size });
+  const moving = state.playing && !still;
   drawComposite(outputCtx, {
     width,
     height,
-    layout,
+    layout: moving ? moveLayout(layout, state.phase, params, size) : layout,
     primary: state.layers.primary,
     secondary: state.layers.secondary,
     style: params,
@@ -186,7 +196,7 @@ function composite() {
 }
 
 function showStatus(text, isError = false) {
-  statusEl.textContent = text;
+  if (statusEl.textContent !== text) statusEl.textContent = text; // it runs every frame while playing
   statusEl.classList.toggle('error', isError);
 }
 
@@ -200,6 +210,12 @@ const FORMAT = {
   centerX: (v) => v.toFixed(3),
   centerY: (v) => v.toFixed(3),
   lineWidth: (v) => `×${v.toFixed(2)}${state.linePx ? ` · ${state.linePx.toFixed(1)} px` : ''}`,
+  motionShift: (v) => {
+    const { width, height } = canvasDims();
+    return `${Math.round(v * Math.min(width, height))} px`;
+  },
+  motionViewTime: (v) => `${Math.round(v * 1000)} ms`,
+  motionPivot: (v) => `echo ${Math.round((1 - v) * 100)} % · ink ${Math.round(v * 100)} %`,
 };
 
 // Layers that can be dragged on their own, with their offset parameters.
@@ -233,7 +249,7 @@ function showValue(key) {
 function syncControls() {
   for (const el of controls) {
     const key = el.dataset.param;
-    if (el.type === 'radio') el.checked = el.value === params[key];
+    if (el.type === 'radio') el.checked = el.value === String(params[key]);
     else if (el.type === 'checkbox') el.checked = params[key];
     else el.value = String(params[key]);
   }
@@ -252,8 +268,15 @@ function syncControls() {
   document.documentElement.style.setProperty('--c-primary', params.primary);
   document.documentElement.style.setProperty('--c-secondary', params.secondary);
   gestureHint.textContent = `${gestureText()} · drag the crosshair or double-click to set the focus point`;
+  for (const range of document.querySelectorAll('input[type="range"]')) paintRange(range);
   const shown = params.dragTarget !== 'panel' ? params.dragTarget : state.selectedPanel == null ? 'panels' : 'panel';
   for (const props of document.querySelectorAll('.props')) props.hidden = props.dataset.target !== shown;
+}
+
+// A slider's track is filled up to its thumb (see styles.css).
+function paintRange(el) {
+  const [min, max] = [Number(el.min), Number(el.max)];
+  el.style.setProperty('--f', String(max > min ? (Number(el.value) - min) / (max - min) : 0));
 }
 
 function gestureText() {
@@ -325,6 +348,7 @@ for (const el of controls) {
     if (key === 'freeWidth' || key === 'freeHeight') params[key] = Math.round(clamp(params[key] || 0, RANGES[key]));
     if (key === 'centerX' || key === 'centerY') flashCenter();
     if (key === 'dragTarget') state.selectedPanel = null; // the Windows row picks all of them
+    if (key === 'motionPath') params.motionViews = PATH_VIEWS[params.motionPath];
     lastDims = canvasDims();
     syncControls();
     invalidate(stageOf(key));
@@ -881,6 +905,38 @@ for (const input of document.querySelectorAll('input[data-edit]')) {
   });
 }
 
+// ---- Motion preview -----------------------------------------------------------
+// Play runs the camera move on the picture. It only draws: the parameters, and with them
+// undo, the readouts and the PNG export, keep the still picture. The crosshair and the
+// window's handles hide meanwhile, since they belong to the still picture. The phase
+// advances by frame time, so a new view time or view count doesn't make it jump.
+
+const playButton = $('#play');
+let motionFrameId = 0;
+
+function playFrame(now) {
+  state.phase = (state.phase + (now - state.lastTime) / (motionLoop(params) * 1000)) % 1;
+  state.lastTime = now;
+  if (state.ready) composite();
+  motionFrameId = requestAnimationFrame(playFrame);
+}
+
+function setPlaying(playing) {
+  state.playing = playing;
+  frameEl.classList.toggle('playing', playing);
+  playButton.title = playing ? 'Pause' : 'Play';
+  playButton.setAttribute('aria-label', playButton.title);
+  playButton.setAttribute('aria-pressed', String(playing));
+  cancelAnimationFrame(motionFrameId);
+  if (playing) {
+    state.phase = 0;
+    state.lastTime = performance.now();
+    motionFrameId = requestAnimationFrame(playFrame);
+  } else if (state.ready) composite();
+}
+
+playButton.addEventListener('click', () => setPlaying(!state.playing));
+
 // ---- Undo, redo and kept settings --------------------------------------------
 // An edit becomes one undo step when it is committed: a control's change (sliders and
 // colour pickers on release), a button press, the end of a gesture on the picture, or a
@@ -1060,15 +1116,214 @@ window.addEventListener('paste', (e) => {
   if (file) loadBlob(file, 'pasted');
 });
 
-$('#export').addEventListener('click', () => {
-  output.toBlob((blob) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${state.name}-${canvasLabel().replace(':', 'x').replace('√', 'sqrt')}.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-  }, 'image/png');
+// ---- Export -------------------------------------------------------------------
+// Export opens a menu: a format (PNG, JPEG, WebP, or a GIF of the motion preview), its
+// options, and Save. Where the browser can (Chrome, Edge), Save first asks where to save
+// and under what name; elsewhere the file is downloaded under the name typed in the
+// menu. The menu's own options are kept in this browser, apart from the settings.
+
+const FORMATS = {
+  png: { mime: 'image/png', ext: '.png', label: 'PNG image' },
+  jpeg: { mime: 'image/jpeg', ext: '.jpg', label: 'JPEG image' },
+  webp: { mime: 'image/webp', ext: '.webp', label: 'WebP image' },
+  gif: { mime: 'image/gif', ext: '.gif', label: 'Animated GIF' },
+};
+const EXPORT_KEY = 'chromallax.export';
+const MENU_WIDTH = 280; // CSS px, as in styles.css
+const exportMenu = $('#export-menu');
+const exportButton = $('#export');
+const saveButton = $('#save');
+const fileNameInput = $('#file-name');
+const qualityInput = $('#quality');
+const exportStatus = $('#export-status');
+const canPickFile = typeof window.showSaveFilePicker === 'function';
+const exportOptions = loadExportOptions();
+let exporting = false;
+
+[qualityInput.min, qualityInput.max] = QUALITY_RANGE.map(String);
+
+function loadExportOptions() {
+  try {
+    return readExportOptions(JSON.parse(localStorage.getItem(EXPORT_KEY)));
+  } catch {
+    return readExportOptions(null);
+  }
+}
+
+function saveExportOptions() {
+  try {
+    localStorage.setItem(EXPORT_KEY, JSON.stringify(exportOptions));
+  } catch {
+    // storage blocked: the options just aren't kept
+  }
+}
+
+const defaultName = () => `${state.name}-${canvasLabel().replace(':', 'x').replace('√', 'sqrt')}`;
+const formatBytes = (n) => (n < 1e6 ? `${Math.max(1, Math.round(n / 1e3))} KB` : `${(n / 1e6).toFixed(1)} MB`);
+
+// The exported picture's size: the canvas, or a share of it for a GIF.
+function exportDims() {
+  const { width, height } = canvasDims();
+  const k = exportOptions.format === 'gif' ? exportOptions.gifScale : 1;
+  return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)) };
+}
+
+function syncExportMenu() {
+  const { format } = exportOptions;
+  for (const el of exportMenu.querySelectorAll('input[name="exportFormat"]')) el.checked = el.value === format;
+  for (const el of exportMenu.querySelectorAll('input[name="gifScale"]')) el.checked = Number(el.value) === exportOptions.gifScale;
+  qualityInput.value = String(exportOptions.quality);
+  paintRange(qualityInput);
+  $('#quality-out').textContent = `${Math.round(exportOptions.quality * 100)} %`;
+  $('#quality-field').hidden = format !== 'jpeg' && format !== 'webp';
+  $('#gif-field').hidden = format !== 'gif';
+  $('#name-field').hidden = canPickFile;
+  $('#file-ext').textContent = FORMATS[format].ext;
+  const { width, height } = exportDims();
+  const path = params.motionPath[0].toUpperCase() + params.motionPath.slice(1);
+  $('#export-info').textContent =
+    format === 'gif'
+      ? `${width} × ${height} px · ${path}, ${motionOrder(params).length} frames of ${Math.round(params.motionViewTime * 1000)} ms (set under Motion)`
+      : `${width} × ${height} px`;
+  saveButton.textContent = exporting ? 'Saving…' : canPickFile ? 'Save…' : 'Download';
+  saveButton.disabled = exporting || !state.ready;
+}
+
+function setExportStatus(text, isError = false) {
+  exportStatus.textContent = text;
+  exportStatus.classList.toggle('error', isError);
+}
+
+// The menu opens under the Export button, kept inside the window.
+function placeExportMenu() {
+  const r = exportButton.getBoundingClientRect();
+  exportMenu.style.top = `${r.bottom + 6}px`;
+  exportMenu.style.left = `${Math.max(8, Math.min(r.right - MENU_WIDTH, innerWidth - MENU_WIDTH - 8))}px`;
+}
+
+exportMenu.addEventListener('beforetoggle', (e) => {
+  if (e.newState !== 'open') return;
+  fileNameInput.value = defaultName();
+  if (!exporting) setExportStatus('');
+  syncExportMenu();
+  placeExportMenu();
 });
+window.addEventListener('resize', () => exportMenu.matches(':popover-open') && placeExportMenu());
+
+for (const el of exportMenu.querySelectorAll('input[name="exportFormat"]')) {
+  el.addEventListener('change', () => {
+    exportOptions.format = el.value;
+    saveExportOptions();
+    syncExportMenu();
+  });
+}
+for (const el of exportMenu.querySelectorAll('input[name="gifScale"]')) {
+  el.addEventListener('change', () => {
+    exportOptions.gifScale = Number(el.value);
+    saveExportOptions();
+    syncExportMenu();
+  });
+}
+qualityInput.addEventListener('input', () => {
+  exportOptions.quality = Number(qualityInput.value);
+  saveExportOptions();
+  syncExportMenu();
+});
+saveButton.addEventListener('click', save);
+fileNameInput.addEventListener('keydown', (e) => e.key === 'Enter' && save());
+
+// A browser that can't write a format hands back PNG instead; its option is disabled.
+for (const format of ['jpeg', 'webp']) {
+  const probe = document.createElement('canvas');
+  probe.toBlob((blob) => {
+    if (blob?.type === FORMATS[format].mime) return;
+    exportMenu.querySelector(`input[value="${format}"]`).disabled = true;
+    if (exportOptions.format === format) exportOptions.format = 'png';
+  }, FORMATS[format].mime);
+}
+
+async function save() {
+  if (exporting || !state.ready) return;
+  const type = FORMATS[exportOptions.format];
+  const typed = canPickFile ? '' : fileNameInput.value.trim();
+  const name = (typed.endsWith(type.ext) ? typed.slice(0, -type.ext.length) : typed || defaultName()).replace(/[\\/:*?"<>|]+/g, '-');
+  let handle = null;
+  if (canPickFile) {
+    try {
+      // Asked straight away, while the click still counts as the user's
+      handle = await window.showSaveFilePicker({
+        suggestedName: name + type.ext,
+        types: [{ description: type.label, accept: { [type.mime]: [type.ext] } }],
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return; // the dialog was cancelled
+      // Not allowed here (for example inside a frame): download instead
+    }
+  }
+  exporting = true;
+  syncExportMenu();
+  try {
+    const blob = exportOptions.format === 'gif' ? await gifBlob() : await stillBlob(type.mime);
+    if (blob.type !== type.mime) throw new Error(`this browser can't write ${type.label}s`);
+    if (handle) {
+      const file = await handle.createWritable();
+      await file.write(blob);
+      await file.close();
+      setExportStatus(`Saved ${handle.name} · ${formatBytes(blob.size)}`);
+    } else {
+      download(blob, name + type.ext);
+      setExportStatus(`Downloaded ${name}${type.ext} · ${formatBytes(blob.size)}`);
+    }
+  } catch (err) {
+    setExportStatus(`Export failed: ${err.message}`, true);
+  } finally {
+    exporting = false;
+    syncExportMenu();
+  }
+}
+
+function download(blob, fileName) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+
+// The still picture, even while the motion preview plays.
+function stillBlob(mime) {
+  composite({ still: true });
+  return new Promise((resolve, reject) => {
+    output.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('the picture could not be encoded'))), mime, exportOptions.quality);
+  });
+}
+
+const nextTask = () => new Promise((resolve) => setTimeout(resolve));
+
+// The motion preview as a GIF: each view drawn once at the export size, then encoded
+// in play order. The status line follows along, since a large GIF takes a moment.
+async function gifBlob() {
+  const { width, height } = exportDims();
+  const size = { width, height, artWidth: state.source.width, artHeight: state.source.height };
+  const layout = computeLayout({ ...params, ...size });
+  const order = motionOrder(params);
+  const canvas = document.createElement('canvas');
+  [canvas.width, canvas.height] = [width, height];
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const views = [];
+  for (let view = 0; view < params.motionViews; view++) {
+    setExportStatus(`Drawing view ${view + 1} of ${params.motionViews}…`);
+    await nextTask();
+    const phase = (order.indexOf(view) + 0.5) / order.length;
+    const frame = moveLayout(layout, phase, params, size);
+    drawComposite(ctx, { width, height, layout: frame, primary: state.layers.primary, secondary: state.layers.secondary, style: params });
+    views.push(ctx.getImageData(0, 0, width, height).data);
+  }
+  setExportStatus('Encoding the GIF…');
+  await nextTask();
+  const data = encodeGif({ width, height, views, order, delay: Math.round(params.motionViewTime * 100) });
+  return new Blob([data], { type: 'image/gif' });
+}
 
 // ---- Start ------------------------------------------------------------------
 

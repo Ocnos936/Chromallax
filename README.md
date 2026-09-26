@@ -46,7 +46,7 @@ It prints a line like `Serving … at http://localhost:5173`. Open that address 
 1. Click **Import** to load your line art, or drag an image onto the page or paste one. The **Demo** button loads a sample drawing. See [Choosing line art](#choosing-line-art) for what works best.
 2. Choose the canvas in the toolbar: portrait or landscape, a ratio, and a size.
 3. Adjust the picture. Drag to move and scroll to resize; the **Layers** list on the left picks what these gestures act on. See [Controls](#controls).
-4. Click **Download PNG**.
+4. Click **Export**, choose a format, and **Save**.
 
 ### 5. Stop the app
 
@@ -92,7 +92,8 @@ Put the focus point on the feature that should stay sharp, usually an eye.
   - **Import** an image, or load the **Demo**, which opens filling the canvas.
   - **Undo** and **redo** (⌘Z and ⇧⌘Z on a Mac, Ctrl+Z and Ctrl+Y elsewhere). A drag, a scroll or a slider move is one step. Loading an image starts the history over.
   - Choose portrait or landscape, then a ratio. The labels follow the orientation: 3:4 in portrait, 4:3 in landscape. **Free** lets you type an exact width × height.
-  - Pick a size from the menu, which lists pixel dimensions (long edge 1080–3840 px). Then **Download PNG**.
+  - Pick a size from the menu, which lists pixel dimensions (long edge 1080–3840 px).
+  - **Export** saves the picture as PNG, JPEG or WebP (with a quality setting), or the motion preview as a looping GIF at full, half or quarter size. In Chrome and Edge, **Save…** asks where to save the file and what to call it. Other browsers download it under the name you type in the menu.
 - **Layers**: a tree of **Figure** (with **Echo** and **Ink** under it) and **Windows** (with a row per window). The selected row is what the gestures on the picture act on.
   - Drag, or use the arrow keys (Shift: 10 px), to move it.
   - Scroll, pinch or press +/- to resize it. The Figure zooms around the pointer. Echo, Ink and all windows together resize around the focus point, so echo and ink stay aligned there.
@@ -109,6 +110,7 @@ Put the focus point on the feature that should stay sharp, usually an eye.
 - **Focus point**: drag the crosshair, or double-click the picture, to put it on the feature that should stay locked. The crosshair appears while the pointer is over the picture.
 - **Line extraction** (closed by default): polarity, threshold and softness, for images that don't come out clean.
 - **More** (closed by default): exact values for the figure's zoom and position and for the focus point.
+- **Motion** (closed by default): a looping preview of the picture as someone moving their head would see it. **Play** starts it. The windows stay still, like a window you look through: the ink moves behind them and the echo in front, in opposite directions. The move steps through a few views, like a wigglegram: **Wiggle** from left to right and back, **Orbit** round a circle, **Breathe** from far to near and back. **Views** is how many there are and **View time** how long each shows. **Shift** is how far the echo moves against the ink, and **Split** shares that move between them. The preview doesn't change the picture: the PNG, JPEG and WebP exports are the still one, and the GIF export saves the motion.
 - **Kept settings**: the browser remembers your canvas, colours, windows, depth, focus point and line width for the next visit. The image isn't kept, and neither are its placement and the line extraction settings, which belong to one image. **Reset to reference** brings back the reference look.
 
 ## Choosing line art
@@ -132,6 +134,7 @@ The effect relies on reading the two copies as the same strokes at two depths, s
 | `src/geometry.js` | Pure layout math: canvas presets, placement, depth, focus point, windows and their handles |
 | `src/preprocess.js` | Pure pixel ops: line mask, stroke distance field, stroke statistics, line width |
 | `src/render.js` | Canvas compositing |
+| `src/gif.js` | Animated GIF encoding: palette, LZW, file layout |
 | `tests/` | `node:test` unit tests for the pure modules |
 | `scripts/serve.mjs` | The local development server |
 | `assets/demo.webp` | Demo line art (AI-generated) |

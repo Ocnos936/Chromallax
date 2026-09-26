@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS } from '../src/config.js';
-import { KEPT_KEYS, keptSettings, readSettings } from '../src/settings.js';
+import { DEFAULTS, EXPORT_DEFAULTS } from '../src/config.js';
+import { KEPT_KEYS, keptSettings, readExportOptions, readSettings } from '../src/settings.js';
 
 // Stored the way app.js stores them: as JSON.
 const roundTrip = (params) => readSettings(JSON.parse(JSON.stringify(keptSettings(params))));
@@ -20,6 +20,9 @@ test('kept settings come back unchanged', () => {
     showPanels: false,
     primaryOffsetX: -0.1,
     secondary: '#ff0000',
+    motionPath: 'orbit',
+    motionViews: 3,
+    motionPivot: 0.2,
   };
   const read = roundTrip(params);
   assert.deepEqual(Object.keys(read).sort(), [...KEPT_KEYS].sort());
@@ -67,4 +70,10 @@ test('anything but version 1 settings reads as nothing', () => {
   for (const stored of [null, 42, 'x', {}, { version: 2, settings: { depth: 1.5 } }, { version: 1, settings: null }]) {
     assert.deepEqual(readSettings(stored), {});
   }
+});
+
+test('export options come back checked, with defaults for anything unusable', () => {
+  assert.deepEqual(readExportOptions({ format: 'gif', quality: 0.8, gifScale: 0.5 }), { format: 'gif', quality: 0.8, gifScale: 0.5 });
+  assert.deepEqual(readExportOptions({ format: 'bmp', quality: 3, gifScale: 0.3 }), { ...EXPORT_DEFAULTS, quality: 1 });
+  for (const stored of [null, 'png', 7]) assert.deepEqual(readExportOptions(stored), EXPORT_DEFAULTS);
 });

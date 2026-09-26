@@ -42,6 +42,13 @@ export const DEFAULTS = Object.freeze({
   primaryOffsetX: 0,
   primaryOffsetY: 0,
 
+  // Motion preview: a looping camera move (see moveLayout in geometry.js)
+  motionPath: 'wiggle', // 'wiggle' | 'orbit' | 'breathe'
+  motionShift: 0.006, // echo against ink, end to end of the move, in canvas short edges
+  motionViews: 2, // views the move steps through
+  motionViewTime: 0.06, // seconds per view
+  motionPivot: 0.5, // where the still windows sit, from the ink (0) to the echo (1)
+
   // Style
   lineWidth: 1, // stroke width relative to the source (via the median stroke width)
   equalWidth: false, // thicken the black copy so it is as wide as magenta after shrinking
@@ -67,7 +74,15 @@ export const RANGES = Object.freeze({
   lineWidth: [0.3, 3],
   freeWidth: [100, 4096], // 4096² is about the largest canvas every browser allows
   freeHeight: [100, 4096],
+  motionShift: [0.001, 0.02], // a small shift reads as depth, a big one as two pictures
+  motionViewTime: [0.02, 0.2], // GIF delays come in 10 ms steps, and browsers play 10 ms or less as 100 ms
+  motionPivot: [0, 1],
 });
+
+// Views a move can step through, and the number each path starts with: an orbit of two
+// views would just be a wiggle.
+export const MOTION_VIEWS = Object.freeze([2, 3, 4, 5]);
+export const PATH_VIEWS = Object.freeze({ wiggle: 2, orbit: 4, breathe: 2 });
 
 // Parameters that `Reset to reference` restores (canvas, placement and extraction are kept).
 export const REFERENCE_KEYS = Object.freeze([
@@ -75,6 +90,13 @@ export const REFERENCE_KEYS = Object.freeze([
   'secondaryOffsetX', 'secondaryOffsetY', 'primaryOffsetX', 'primaryOffsetY',
   'lineWidth', 'equalWidth', 'background', 'panel', 'primary', 'secondary',
 ]);
+
+// Export: the file formats, and the options the export menu starts with. A GIF is the
+// motion preview, at a share of the canvas size.
+export const EXPORT_FORMATS = Object.freeze(['png', 'jpeg', 'webp', 'gif']);
+export const GIF_SCALES = Object.freeze([1, 0.5, 0.25]);
+export const EXPORT_DEFAULTS = Object.freeze({ format: 'png', quality: 0.92, gifScale: 1 });
+export const QUALITY_RANGE = Object.freeze([0.5, 1]); // JPEG and WebP
 
 // Sources are thresholded with their long edge in this range: large images are
 // shrunk (memory / speed); small ones are enlarged first, so that thresholding
