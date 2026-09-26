@@ -2,7 +2,14 @@
   "name": "chromallax",
   "version": "0.1.0",
   "private": true,
-  "description": "Turn clean line art into a dual-line (black + magenta) fake-3D illustration on a cobalt panel.",
+  "description": "Turn line art into a fake-3D picture: two copies of the drawing at two depths, in colours that read as near and far.",
+  "license": "MIT",
+  "author": "Ruiqiang Liu",
+  "homepage": "https://ocnos936.github.io/Chromallax/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ocnos936/Chromallax.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "node scripts/serve.mjs",
