@@ -10,7 +10,7 @@ English | [简体中文](README.zh-CN.md)
 
 <table>
   <tr>
-    <td><img src="docs/images/motion.gif" width="250" alt="The demo drawing in green over a blue window, wiggling between two views"></td>
+    <td><img src="docs/images/motion.webp" width="250" alt="The demo drawing in green over a blue window, wiggling between two views"></td>
     <td><img src="docs/images/windows.webp" width="250" alt="White lines over three round blue windows and a turned rectangle"></td>
     <td><img src="docs/images/no-window.webp" width="250" alt="Red lines over cyan lines on black, with no window"></td>
   </tr>
