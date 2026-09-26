@@ -4,9 +4,12 @@
 // line width) is debounced; every other change recomposites cached layer
 // canvases per frame.
 import {
-  DEFAULTS, EXTRACTION_START, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, PATH_VIEWS, PHOTO_EDGE, PHOTO_HINT, PHOTO_SIGMA,
-  QUALITY_RANGE, RANGES, REFERENCE_KEYS, SIZES,
+  DEFAULTS, EXTRACTION_START, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, PALETTES, PATH_VIEWS, PHOTO_EDGE, PHOTO_HINT,
+  PHOTO_SIGMA, QUALITY_RANGE, RANGES, REFERENCE_KEYS, SIZES,
 } from './config.js';
+import {
+  colourHint, colours, customColours, hasPalette, paletteColours, paletteOf, shownInk, swapColours, swappedPaletteOf,
+} from './colour.js';
 import {
   RATIOS, canvasSize, computeLayout, fillScale, motionLoop, motionOrder, moveLayout, movePanels, panelAt, panelBox,
   panelHandles, ratioLabel, referencePanel, resizePanel, rotatePanel, scaleLayer, scalePanels,
@@ -54,6 +57,7 @@ const state = {
   ready: false, // layers exist for the current image
   linePx: 0, // magenta stroke width in output px, for the line-width readout
   selectedPanel: null, // index of the window being edited while the Windows layer is picked; null = all
+  palette: null, // the palette tile picked last, shown while the colours still match it
   playing: false, // the motion preview runs
   phase: 0, // where it is in the loop, 0 to 1
   lastTime: 0, // the previous frame's time, in ms
@@ -224,7 +228,19 @@ function composite({ still = false } = {}) {
     ? ` · ${Math.round(f.heavyShare * 100)}% of the ink is fills or heavy strokes; thin, even lines give more depth${photoHint}`
     : '';
   const soft = zoom > 1.25 ? ` · art enlarged ×${zoom.toFixed(1)}, lines may look soft` : '';
-  showStatus(`${state.name} · ${width} × ${height} px · lines ${lines}${heavy}${soft}`);
+  showStatus(`${state.name} · ${width} × ${height} px · lines ${lines}${heavy}${soft}${colourNote()}`);
+}
+
+// Colours that hide a layer, or that work against the depth, get a word on the status line.
+function colourNote() {
+  const hint = colourHint(params, windowOff());
+  if (hint === 'hidden-ink') return " · the ink has the colour behind it, so it doesn't show";
+  if (hint === 'hidden-echo') {
+    return windowOff() ? " · the echo has the background's colour, so it doesn't show" : " · the echo has the window colour, so it doesn't show inside the windows";
+  }
+  if (hint === 'light-window') return ' · on a light window the colours give little depth, or the wrong way round; a dark one works better';
+  if (hint === 'reversed') return " · the echo's colour tends to look farther than the ink's: Colours → Swap turns it round";
+  return '';
 }
 
 function showStatus(text, isError = false) {
@@ -265,6 +281,39 @@ const controls = [...document.querySelectorAll('[data-param]')];
 
 $('#size').append(...SIZES.map((size) => new Option('', String(size)))); // labelled W × H by syncCanvasControls
 
+// Colour palettes: the presets, then Custom, the colours last picked by hand. The tiles
+// show only the colours; one line under them, always one line so nothing below it jumps,
+// names the palette picked or the one under the pointer.
+const over = ([near, far]) => `${near[0].toUpperCase()}${near.slice(1)} over ${far}`;
+const CUSTOM_CAPTION = 'Your own colours';
+const paletteCaption = $('#palette-caption');
+const paletteInputs = [...PALETTES, { id: 'custom' }].map((palette) => {
+  const caption = palette.names ? over(palette.names) : CUSTOM_CAPTION;
+  const tile = document.createElement('label');
+  tile.className = 'palette';
+  tile.innerHTML = `<input type="radio" name="palette" value="${palette.id}" aria-label="${caption}" /><span class="palette-icon" aria-hidden="true"></span>`;
+  if (palette.near) setIcon(tile, palette.near, palette.far);
+  tile.addEventListener('pointerenter', () => (paletteCaption.textContent = caption));
+  tile.addEventListener('pointerleave', syncPalettes);
+  $('#palettes').append(tile);
+  return tile.querySelector('input');
+});
+
+// The line for the palette `id`; for none, a swapped preset reads the other way round.
+function paletteText(id) {
+  if (id === 'custom') return CUSTOM_CAPTION;
+  const preset = PALETTES.find((p) => p.id === id);
+  if (preset) return over(preset.names);
+  const swapped = PALETTES.find((p) => p.id === swappedPaletteOf(params, windowOff()));
+  return swapped ? over([...swapped.names].reverse()) : 'None of these palettes';
+}
+
+function setIcon(tile, near, far) {
+  const icon = tile.querySelector('.palette-icon');
+  icon.style.setProperty('--near', near);
+  icon.style.setProperty('--far', far);
+}
+
 for (const [key, [min, max]] of Object.entries(RANGES)) {
   for (const el of document.querySelectorAll(`input[type="range"][data-param="${key}"]`)) {
     el.min = String(min);
@@ -296,16 +345,40 @@ function syncControls() {
       ? !params[layer.x] && !params[layer.y]
       : params.artX === 0.5 && params.artY === 0.5 && params.artScale === 1;
   }
-  windowColour.disabled = windowOff();
+  windowColour.disabled = windowOff(); // Custom's own window picker stays usable
   syncCanvasControls();
   syncPanelControls();
   document.documentElement.style.setProperty('--c-primary', params.primary);
   document.documentElement.style.setProperty('--c-secondary', params.secondary);
+  syncPalettes();
   gestureHint.textContent = `${gestureText()} · drag the crosshair or double-click to set the focus point`;
   for (const range of document.querySelectorAll('input[type="range"]')) paintRange(range);
   const shown = params.dragTarget !== 'panel' ? params.dragTarget : state.selectedPanel == null ? 'panels' : 'panel';
   for (const props of document.querySelectorAll('.props')) props.hidden = props.dataset.target !== shown;
   for (const el of document.querySelectorAll('[data-extraction]')) el.hidden = el.dataset.extraction !== params.extraction;
+}
+
+// The tile picked last stays picked while the colours match it (Custom may hold a
+// preset's colours), else the palette the colours come from. Custom shows its colours,
+// with pickers for them while it is picked.
+function syncPalettes() {
+  const current = state.palette && hasPalette(params, state.palette, windowOff()) ? state.palette : paletteOf(params, windowOff());
+  for (const input of paletteInputs) input.checked = input.value === current;
+  paletteCaption.textContent = paletteText(current);
+  $('#custom-colours').hidden = current !== 'custom';
+  const note = $('#custom-note');
+  note.textContent = !params.showPanels
+    ? 'The windows are hidden, so their colour shows once the eye in the Windows row brings them back.'
+    : !params.panels.length
+      ? 'There are no windows, so their colour shows once you add one with + in the Windows row.'
+      : '';
+  note.hidden = !note.textContent;
+  const tile = paletteInputs.at(-1).closest('.palette');
+  tile.classList.toggle('empty', !params.customColours);
+  if (params.customColours) {
+    const { secondary, primary, panel } = customColours(params.customColours, { windowOff: windowOff(), background: params.background });
+    setIcon(tile, secondary, windowOff() ? primary : panel);
+  }
 }
 
 // A slider's track is filled up to its thumb (see styles.css).
@@ -385,6 +458,10 @@ for (const el of controls) {
     if (key === 'dragTarget') state.selectedPanel = null; // the Windows row picks all of them
     if (key === 'motionPath') params.motionViews = PATH_VIEWS[params.motionPath];
     if (key === 'extraction') Object.assign(params, EXTRACTION_START[params.extraction]);
+    if (key === 'secondary' || key === 'primary' || key === 'panel') {
+      params.customColours = colours(params);
+      state.palette = 'custom';
+    }
     lastDims = canvasDims();
     syncControls();
     invalidate(stageOf(key));
@@ -395,12 +472,37 @@ for (const el of controls) {
 // there is no window. When the windows come or go, hand it the other one of the two, so
 // the reference's black ink on blue becomes blue ink on black, and back.
 function keepInkVisible() {
-  const same = (a, b) => a.toLowerCase() === b.toLowerCase();
-  const [behind, other] = windowOff() ? [params.background, params.panel] : [params.panel, params.background];
-  if (!same(params.primary, behind) || same(other, behind)) return false;
-  params.primary = other;
+  const ink = shownInk(params, { windowOff: windowOff(), background: params.background });
+  if (ink === params.primary) return false;
+  params.primary = ink;
   return true;
 }
+
+// A preset sets all three colours to suit the windows as they are now (see
+// paletteColours). Custom brings back the colours picked by hand, or the first time
+// starts from the colours on show, and opens pickers for them.
+for (const input of paletteInputs) {
+  input.addEventListener('change', () => {
+    if (!input.checked) return;
+    const context = { windowOff: windowOff(), background: params.background };
+    const preset = PALETTES.find((p) => p.id === input.value);
+    if (preset) Object.assign(params, paletteColours(preset, context));
+    else if (params.customColours) Object.assign(params, customColours(params.customColours, context));
+    else params.customColours = colours(params);
+    state.palette = input.value;
+    syncControls();
+    invalidate('tint');
+  });
+}
+
+// Swapping Custom's colours changes Custom; swapping a preset's leaves the presets.
+$('#swap-colours').addEventListener('click', () => {
+  const custom = hasPalette(params, 'custom', windowOff()) && state.palette === 'custom';
+  Object.assign(params, swapColours(params, windowOff()));
+  if (custom) params.customColours = colours(params);
+  syncControls();
+  invalidate('tint');
+});
 
 for (const button of document.querySelectorAll('.layer .reset')) {
   button.addEventListener('click', (e) => {

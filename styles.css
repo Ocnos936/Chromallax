@@ -613,6 +613,7 @@ summary:hover {
 }
 
 .layer input[type='color'],
+.custom-colours input[type='color'],
 .swatch {
   width: 20px;
   height: 20px;
@@ -623,16 +624,19 @@ summary:hover {
   cursor: pointer;
 }
 
-.layer input[type='color']::-webkit-color-swatch-wrapper {
+.layer input[type='color']::-webkit-color-swatch-wrapper,
+.custom-colours input[type='color']::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.layer input[type='color']::-webkit-color-swatch {
+.layer input[type='color']::-webkit-color-swatch,
+.custom-colours input[type='color']::-webkit-color-swatch {
   border: none;
   border-radius: 50%;
 }
 
-.layer input[type='color']::-moz-color-swatch {
+.layer input[type='color']::-moz-color-swatch,
+.custom-colours input[type='color']::-moz-color-swatch {
   border: none;
   border-radius: 50%;
 }
@@ -824,6 +828,135 @@ summary:hover {
 .props .actions {
   display: flex;
   gap: 8px;
+}
+
+/* ---- Colours ------------------------------------------------------------------ */
+
+/* Palette tiles: the app's mark in each palette's colours, on the picture's black */
+.palettes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.palette {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 6px 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.palette input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.palette:hover {
+  background: var(--control);
+}
+
+.palette:has(input:checked) {
+  background: var(--selected);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 45%);
+}
+
+.palette:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 0;
+}
+
+.palette-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: #000;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+.palette-icon::before,
+.palette-icon::after {
+  grid-area: 1 / 1;
+  content: '';
+}
+
+.palette-icon::before {
+  width: 11px;
+  height: 11px;
+  background: var(--far, transparent);
+  border-radius: 1.5px;
+}
+
+.palette-icon::after {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--near, var(--faint));
+  border-radius: 3px;
+}
+
+.palette.empty .palette-icon::after {
+  border-style: dashed;
+}
+
+/* The palette picked, or the one under the pointer: always one line */
+.palette-caption {
+  overflow: hidden;
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Custom's colours, while Custom is picked */
+.custom-colours {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: var(--well);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.custom-colours .swatches {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.custom-colours label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+
+/* A swatch keeps its round shape however tight the row gets */
+.custom-colours input[type='color'] {
+  flex: none;
+}
+
+#swap-colours {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 7px;
+}
+
+#swap-colours svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ---- Motion preview ------------------------------------------------------------ */

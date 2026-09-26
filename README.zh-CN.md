@@ -10,14 +10,14 @@
 
 <table>
   <tr>
-    <td><img src="docs/images/motion.gif" width="250" alt="示例线稿在两个视角之间来回切换"></td>
-    <td><img src="docs/images/windows.webp" width="250" alt="三个圆形窗口和一个倾斜的矩形窗口"></td>
-    <td><img src="docs/images/red-blue.webp" width="250" alt="黑色背景上红色线条叠在蓝色线条之上，无窗口"></td>
+    <td><img src="docs/images/motion.gif" width="250" alt="绿色线条叠在蓝色窗口上的示例线稿，在两个视角之间来回切换"></td>
+    <td><img src="docs/images/windows.webp" width="250" alt="白色线条叠在三个蓝色圆形窗口和一个倾斜的矩形窗口上"></td>
+    <td><img src="docs/images/no-window.webp" width="250" alt="黑色背景上红色线条叠在青色线条之上，无窗口"></td>
   </tr>
   <tr>
-    <td align="center">动态效果，导出为 GIF</td>
-    <td align="center">任意形状的窗口</td>
-    <td align="center">红蓝配色，无窗口</td>
+    <td align="center">动态效果，导出为 GIF<br>绿配蓝</td>
+    <td align="center">任意形状的窗口<br>白配蓝</td>
+    <td align="center">无窗口<br>红配青</td>
   </tr>
 </table>
 
@@ -56,7 +56,7 @@ npm run dev
 
 画面由同一张线稿的两份副本组成，分处远近两个深度。**Ink**（墨线层）位于远处，是以 **焦点** 为中心缩小后的线稿；**Echo**（回声层）位于近处，保持原始大小，以品红色显示。两层在焦点处完全重合，越靠近边缘错开得越多，这正是物体离观者更近时所呈现的样子。蓝色的 **窗口** 由整张画布按相同比例缩小而来，Ink 位于其中，如同墙上悬挂的画。
 
-配色同样有助于表现深度：饱和的红色通常显得比蓝色更靠前。
+配色同样有助于表现深度：在深色背景上，多数人会觉得红色比蓝色更靠前。
 
 焦点宜放在希望保持不动的部位，通常是眼睛。
 
@@ -71,6 +71,7 @@ npm run dev
 - **Layers**（图层）：选择要在画面上调整的图层，可以是整幅图、Echo、Ink 或窗口。选中后，拖动可移动，滚轮或双指捏合可缩放。
 - **Windows**（窗口）：可选。支持添加矩形和圆形窗口，拖动控制点即可缩放和旋转，操作方式与演示文稿软件中的图形一致。点击眼睛图标可隐藏全部窗口，只保留黑色背景上的线条。
 - **深度**：即 Echo 一行中显示的数值，可左右拖动调整，也可点击后直接输入。
+- **Colours**（配色）：预设配色都让偏红的颜色在前；Custom 格可以自己选色并保存。少数人看到的前后关系正好相反，可以用 *Swap near and far* 对调。
 - **Motion**（动态）：让画面在几个视角之间切换，类似摇摆立体图（wigglegram），使远近层次更加明显。
 - **Export**（导出）：静态画面可导出为 PNG、JPEG 或 WebP，动态效果可导出为 GIF。在 Chrome 和 Edge 中可以自行选择文件名和保存位置。
 
@@ -120,6 +121,7 @@ npm run dev
 | `src/preprocess.js` | 线条提取与线宽计算 |
 | `src/photo.js` | 照片模式：沿照片中的边缘生成线条 |
 | `src/render.js` | 图层绘制 |
+| `src/colour.js` | 配色预设，以及颜色对深度的影响 |
 | `src/gif.js` | GIF 编码 |
 | `src/history.js`、`src/settings.js` | 撤销历史，以及跨会话保存的设置 |
 | `tests/` | 单元测试，覆盖所有不依赖浏览器的模块 |

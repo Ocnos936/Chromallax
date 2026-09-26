@@ -61,7 +61,36 @@ export const DEFAULTS = Object.freeze({
   panel: '#0b03f6',
   primary: '#000000',
   secondary: '#f0087d',
+  // The Custom palette: the colours last picked by hand (echo, ink, window), which it
+  // brings back after trying a preset; null until Custom is first picked.
+  customColours: null,
 });
+
+// Colour presets, each a near colour for the echo and a far one for the window, or for
+// the ink when there is no window (see paletteColours in colour.js). On a dark
+// background most people see the red end of the spectrum in front of the blue end
+// (chromostereopsis), so near colours come from the red end and far ones from the blue
+// end. Classic is the reference, Red–blue the second reference. With the red end
+// against green or cyan, or green against blue, there is about half as much colour
+// depth; white over grey has none, and only the dimmer layer reads as farther.
+// `names` are the colours' names, for the line under the tiles ("Red over blue").
+export const PALETTES = Object.freeze([
+  { id: 'classic', near: '#f0087d', far: '#0b03f6', names: ['magenta', 'cobalt'] },
+  { id: 'red-blue', near: '#fa0303', far: '#080bea', names: ['red', 'blue'] },
+  { id: 'red-green', near: '#fa0303', far: '#00c000', names: ['red', 'green'] },
+  { id: 'red-cyan', near: '#fa0303', far: '#00c0ff', names: ['red', 'cyan'] },
+  { id: 'green-blue', near: '#00e000', far: '#080bea', names: ['green', 'blue'] },
+  { id: 'ice', near: '#ffffff', far: '#080bea', names: ['white', 'blue'] },
+  { id: 'mono', near: '#ffffff', far: '#505050', names: ['white', 'grey'] },
+].map(Object.freeze));
+
+// The status line says the colours work against the depth when the echo's colour reads
+// this much farther than the ink's (in dioptres, see chromaticDepth in colour.js; red
+// over blue is +0.63, the Classic colours swapped −0.09), and that a window this light
+// (relative luminance, white is 1) leaves little colour depth: on a light background it
+// fades or turns round. The Red–cyan preset's window is 0.45.
+export const REVERSED_COLOURS = 0.05;
+export const LIGHT_WINDOW = 0.5;
 
 // Long edges in the canvas size menu, in px.
 export const SIZES = Object.freeze([1080, 1920, 2560, 3840]);
