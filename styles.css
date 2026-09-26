@@ -521,6 +521,14 @@ summary:hover {
   padding-top: 14px;
 }
 
+.body [hidden] {
+  display: none;
+}
+
+.body > .segmented {
+  height: var(--control-h);
+}
+
 .field {
   display: grid;
   gap: 6px;

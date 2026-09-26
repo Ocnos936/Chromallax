@@ -4,13 +4,15 @@
 // line width) is debounced; every other change recomposites cached layer
 // canvases per frame.
 import {
-  DEFAULTS, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, PATH_VIEWS, QUALITY_RANGE, RANGES, REFERENCE_KEYS, SIZES,
+  DEFAULTS, EXTRACTION_START, HEAVY_SHARE_HINT, MAX_SOURCE_EDGE, MIN_SOURCE_EDGE, PATH_VIEWS, PHOTO_EDGE, PHOTO_HINT, PHOTO_SIGMA,
+  QUALITY_RANGE, RANGES, REFERENCE_KEYS, SIZES,
 } from './config.js';
 import {
   RATIOS, canvasSize, computeLayout, fillScale, motionLoop, motionOrder, moveLayout, movePanels, panelAt, panelBox,
   panelHandles, ratioLabel, referencePanel, resizePanel, rotatePanel, scaleLayer, scalePanels,
 } from './geometry.js';
 import { encodeGif } from './gif.js';
+import { photoLevels, resizeGray } from './photo.js';
 import { History } from './history.js';
 import { inkLevels, maskFromLevels, offsetCoverage, otsuThreshold, strokeField, strokeOffsets } from './preprocess.js';
 import { maskToCanvas, tint, drawComposite } from './render.js';
@@ -72,6 +74,9 @@ const activePanel = () =>
 const STAGES = ['source', 'levels', 'mask', 'weight', 'tint', 'composite'];
 const [SOURCE, LEVELS, MASK, WEIGHT, TINT] = [0, 1, 2, 3, 4];
 const STAGE_OF = {
+  extraction: 'levels',
+  photoDetail: 'levels',
+  photoFlow: 'levels',
   invert: 'levels',
   flatten: 'levels',
   threshold: 'mask',
@@ -140,16 +145,31 @@ function prepareSource() {
   state.source = canvas;
 }
 
+// Line art: grey levels straight from the source. A photo: lines drawn along its edges
+// at PHOTO_EDGE, then scaled up to the source size.
 function computeLevels() {
   const { width, height } = state.source;
-  const pixels = state.source.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
-  state.levels = inkLevels(pixels, params);
+  if (params.extraction !== 'photo') {
+    const pixels = state.source.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
+    state.levels = inkLevels(pixels, params);
+    return;
+  }
+  const k = Math.min(1, PHOTO_EDGE / Math.max(width, height));
+  const small = document.createElement('canvas');
+  [small.width, small.height] = [Math.max(1, Math.round(width * k)), Math.max(1, Math.round(height * k))];
+  const ctx = small.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(state.source, 0, 0, small.width, small.height);
+  const pixels = ctx.getImageData(0, 0, small.width, small.height);
+  const gray = photoLevels(pixels, { sigma: PHOTO_SIGMA / params.photoDetail, flow: params.photoFlow });
+  state.levels = { gray: resizeGray(gray, small.width, small.height, width, height), width, height, lightLines: false, usedAlpha: false };
 }
 
 function computeField() {
   const { width, height } = state.source;
   const { mask, lightLines, usedAlpha } = maskFromLevels(state.levels, params);
-  state.field = { ...strokeField(mask, width, height), width, height, lightLines, usedAlpha };
+  const photo = params.extraction === 'photo';
+  state.field = { ...strokeField(mask, width, height), width, height, lightLines, usedAlpha, photo };
 }
 
 function buildMasks() {
@@ -198,9 +218,10 @@ function composite({ still = false } = {}) {
     showStatus(state.notice, true);
     return;
   }
-  const lines = f.usedAlpha ? 'from transparency' : f.lightLines ? 'light on dark' : 'dark on light';
+  const lines = f.photo ? 'drawn from a photo' : f.usedAlpha ? 'from transparency' : f.lightLines ? 'light on dark' : 'dark on light';
+  const photoHint = !f.photo && f.heavyShare > PHOTO_HINT ? '; for a photo, try Line extraction → Photo' : '';
   const heavy = heavyInk()
-    ? ` · ${Math.round(f.heavyShare * 100)}% of the ink is fills or heavy strokes; thin, even lines give more depth`
+    ? ` · ${Math.round(f.heavyShare * 100)}% of the ink is fills or heavy strokes; thin, even lines give more depth${photoHint}`
     : '';
   const soft = zoom > 1.25 ? ` · art enlarged ×${zoom.toFixed(1)}, lines may look soft` : '';
   showStatus(`${state.name} · ${width} × ${height} px · lines ${lines}${heavy}${soft}`);
@@ -221,6 +242,7 @@ const FORMAT = {
   centerX: (v) => v.toFixed(3),
   centerY: (v) => v.toFixed(3),
   specks: (v) => (v ? `up to ${v} px` : 'off'),
+  photoDetail: (v) => `×${v.toFixed(2)}`,
   lineWidth: (v) => `×${v.toFixed(2)}${state.linePx ? ` · ${state.linePx.toFixed(1)} px` : ''}`,
   motionShift: (v) => {
     const { width, height } = canvasDims();
@@ -283,6 +305,7 @@ function syncControls() {
   for (const range of document.querySelectorAll('input[type="range"]')) paintRange(range);
   const shown = params.dragTarget !== 'panel' ? params.dragTarget : state.selectedPanel == null ? 'panels' : 'panel';
   for (const props of document.querySelectorAll('.props')) props.hidden = props.dataset.target !== shown;
+  for (const el of document.querySelectorAll('[data-extraction]')) el.hidden = el.dataset.extraction !== params.extraction;
 }
 
 // A slider's track is filled up to its thumb (see styles.css).
@@ -361,6 +384,7 @@ for (const el of controls) {
     if (key === 'centerX' || key === 'centerY') flashCenter();
     if (key === 'dragTarget') state.selectedPanel = null; // the Windows row picks all of them
     if (key === 'motionPath') params.motionViews = PATH_VIEWS[params.motionPath];
+    if (key === 'extraction') Object.assign(params, EXTRACTION_START[params.extraction]);
     lastDims = canvasDims();
     syncControls();
     invalidate(stageOf(key));
