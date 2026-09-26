@@ -20,6 +20,7 @@ test('kept settings come back unchanged', () => {
     showPanels: false,
     primaryOffsetX: -0.1,
     secondary: '#ff0000',
+    customColours: { secondary: '#ff0000', primary: '#000000', panel: '#0000ff' },
     motionPath: 'orbit',
     motionViews: 3,
     motionPivot: 0.2,
@@ -49,6 +50,7 @@ test('unusable values are dropped and numbers are clamped', () => {
       primary: 'black',
       secondary: '#F0087D',
       freeWidth: 50,
+      customColours: { secondary: '#ff0000', primary: 'black', panel: '#0000ff' },
     },
   });
   assert.deepEqual(read, { depth: 2, secondary: '#F0087D', freeWidth: 100 });

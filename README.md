@@ -56,7 +56,7 @@ If something goes wrong:
 
 Two copies of the same drawing sit at two depths. The **ink** is the drawing shrunk toward a **focus point**. The **echo**, in magenta, is the full-size drawing, so it meets the ink at the focus point and drifts further out towards the edges, which is how something nearer to you looks. The blue **window** is the canvas shrunk the same way, so the ink hangs in it like a picture on a wall.
 
-The colours help as well: saturated red tends to look nearer than blue.
+The colours help as well: on a dark background, most people see red in front of blue.
 
 Put the focus point on whatever should stay locked, usually an eye.
 
@@ -71,6 +71,7 @@ Load a drawing with **Import**, by dropping it on the page, or by pasting it. **
 - **Layers** pick what you move on the picture: the whole figure, the echo, the ink or the windows. Drag to move, and scroll or pinch to resize.
 - **Windows** are optional. Add rectangles and circles, and resize and turn them by their handles, as in a slide editor. The eye hides them all, which leaves lines on black.
 - **Depth** is the number on the Echo row. Drag it sideways, or click it and type.
+- **Colours** has palettes that put the redder colour in front, a Custom slot for your own colours, and a swap for anyone who sees it the other way round.
 - **Motion** plays the picture as a wigglegram: stepping between a few views makes the two layers read as near and far.
 - **Export** saves PNG, JPEG or WebP, or the motion as a GIF. In Chrome and Edge you choose the name and folder.
 
@@ -120,6 +121,7 @@ Undo and redo work as usual, and the app remembers your canvas, colours and wind
 | `src/preprocess.js` | Line extraction and stroke width |
 | `src/photo.js` | Photo mode: lines along a photo's edges |
 | `src/render.js` | Drawing the layers |
+| `src/colour.js` | Colour palettes, and how colours read in depth |
 | `src/gif.js` | GIF encoding |
 | `src/history.js`, `src/settings.js` | Undo, and the settings kept between visits |
 | `tests/` | Unit tests for everything that doesn't need a browser |

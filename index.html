@@ -146,6 +146,27 @@
         </div>
       </section>
 
+      <details id="colours">
+        <summary>Colours</summary>
+        <div class="body">
+          <div class="palettes" id="palettes" role="radiogroup" aria-label="Colour palette"></div>
+          <p class="palette-caption" id="palette-caption"></p>
+          <div class="custom-colours" id="custom-colours" hidden>
+            <div class="swatches">
+              <label><input type="color" data-param="secondary" aria-label="Echo colour" /><span>Echo</span></label>
+              <label><input type="color" data-param="primary" aria-label="Ink colour" /><span>Ink</span></label>
+              <label><input type="color" data-param="panel" aria-label="Window colour" /><span>Window</span></label>
+            </div>
+            <p class="note" id="custom-note"></p>
+          </div>
+          <button type="button" id="swap-colours" title="Swap the near and far colours. Most people see the red end in front of the blue end; for some it is the other way round.">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5h10l-2.5-2.5M13.5 10.5h-10l2.5 2.5" /></svg>
+            Swap near and far
+          </button>
+          <p class="note">On a dark background most people see red in front of blue, so the presets give the echo the redder colour.</p>
+        </div>
+      </details>
+
       <details id="motion">
         <summary>Motion</summary>
         <div class="body">

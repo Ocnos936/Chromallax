@@ -29,6 +29,14 @@ function panel(p) {
   return w && h ? { shape: p.shape, x, y, w, h, angle } : undefined;
 }
 
+// The colours picked by hand: all three, or none (null is kept: nothing picked yet).
+function customColours(v) {
+  if (v === null) return null;
+  if (typeof v !== 'object') return undefined;
+  const read = { secondary: colour(v.secondary), primary: colour(v.primary), panel: colour(v.panel) };
+  return Object.values(read).includes(undefined) ? undefined : read;
+}
+
 // All windows or none: a list with one bad window keeps the default list.
 function panels(list) {
   if (!Array.isArray(list)) return undefined;
@@ -61,6 +69,7 @@ const RULES = {
   panel: colour,
   primary: colour,
   secondary: colour,
+  customColours,
 };
 
 export const KEPT_KEYS = Object.freeze(Object.keys(RULES));
