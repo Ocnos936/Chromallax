@@ -4,36 +4,52 @@
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /**
- * Turn clean line art into a soft line mask.
+ * Grey levels with the lines dark, whatever the source's polarity.
  *
- * Images with real transparency use alpha as the mask (opaque = line, any colour).
- * Otherwise luminance is thresholded with a linear ramp of width `softness`
- * centred on `threshold`, which keeps the source's anti-aliasing.
+ * Images with real transparency use alpha (opaque = line, any colour); otherwise
+ * luminance, inverted for light lines on dark. With `flatten`, the paper's uneven
+ * light (a phone photo's shading, a scan's vignette) is divided out first, so one
+ * threshold fits the whole page.
  *
  * @param {{data: Uint8ClampedArray, width: number, height: number}} image RGBA pixels
- * @param {{threshold?: number, softness?: number, invert?: 'auto'|'dark'|'light'}} options
+ * @param {{invert?: 'auto'|'dark'|'light', flatten?: boolean}} options
  *   invert: 'dark' = dark lines on light, 'light' = light lines on dark,
  *   'auto' = decide from the median luminance (the background dominates line art).
  */
-export function lineMask({ data, width, height }, { threshold = 180, softness = 48, invert = 'auto' } = {}) {
+export function inkLevels({ data, width, height }, { invert = 'auto', flatten = false } = {}) {
   const n = width * height;
   let transparent = 0;
   for (let j = 3; j < data.length; j += 4) if (data[j] < 250) transparent++;
   const usedAlpha = transparent > n * 0.01;
 
-  const gray = new Float32Array(n);
+  let gray = new Float32Array(n);
   for (let i = 0, j = 0; i < n; i++, j += 4) {
     gray[i] = usedAlpha ? 255 - data[j + 3] : (299 * data[j] + 587 * data[j + 1] + 114 * data[j + 2]) / 1000;
   }
   const lightLines = !usedAlpha && (invert === 'light' || (invert === 'auto' && median(gray) < 128));
+  if (lightLines) for (let i = 0; i < n; i++) gray[i] = 255 - gray[i];
+  if (flatten && !usedAlpha) gray = flattenBackground(gray, width, height, Math.round(0.02 * Math.max(width, height)));
+  return { gray, width, height, lightLines, usedAlpha };
+}
 
-  const mask = new Float32Array(n);
+/**
+ * A soft line mask from inkLevels(): a linear ramp of width `softness` centred on
+ * `threshold`, which keeps the source's anti-aliasing. With `specks` > 0, marks no
+ * more than that many px across (dust, paper grain) are removed.
+ */
+export function maskFromLevels({ gray, width, height, lightLines, usedAlpha }, { threshold = 180, softness = 48, specks = 0 } = {}) {
+  const mask = new Float32Array(width * height);
   const hi = threshold + softness / 2;
-  for (let i = 0; i < n; i++) {
-    const g = lightLines ? 255 - gray[i] : gray[i];
-    mask[i] = softness > 0 ? clamp01((hi - g) / softness) : g < threshold ? 1 : 0;
+  for (let i = 0; i < mask.length; i++) {
+    mask[i] = softness > 0 ? clamp01((hi - gray[i]) / softness) : gray[i] < threshold ? 1 : 0;
   }
+  if (specks > 0) removeSpecks(mask, width, height, specks);
   return { mask, width, height, lightLines, usedAlpha };
+}
+
+/** inkLevels() and maskFromLevels() in one go. */
+export function lineMask(image, options = {}) {
+  return maskFromLevels(inkLevels(image, options), options);
 }
 
 function median(values) {
@@ -45,6 +61,174 @@ function median(values) {
     if (seen * 2 >= values.length) return k;
   }
   return 255;
+}
+
+// ---- Cleaning up scans and photos of paper -------------------------------------
+
+/**
+ * Divide out the paper's light. The paper level is a grey closing (the max, then the
+ * min, over a square of radius `radius`), which drops every dark mark narrower than
+ * that square, smoothed by two box blurs. The result has the paper at 255 everywhere
+ * and each line as dark as it was against its own surroundings. Dark areas wider than
+ * the square count as paper and fade.
+ *
+ * The paper's light varies slowly, so it is worked out on a grid of blocks (each the
+ * brightest of its pixels, about radius / 8 across) and read back bilinearly. Within
+ * `radius` of the image's edge the windows are cut short, so where the light changes
+ * fast there the paper comes out a few levels grey.
+ */
+export function flattenBackground(gray, width, height, radius) {
+  const f = Math.max(1, Math.floor(radius / 8));
+  const [w, h] = [Math.ceil(width / f), Math.ceil(height / f)];
+  let paper = new Float32Array(w * h);
+  for (let y = 0; y < height; y++) {
+    const row = ((y / f) | 0) * w;
+    for (let x = 0; x < width; x++) {
+      const i = row + ((x / f) | 0);
+      const v = gray[y * width + x];
+      if (v > paper[i]) paper[i] = v;
+    }
+  }
+  const r = Math.max(1, Math.round(radius / f));
+  paper = slidingExtreme(paper, w, h, r, Math.max);
+  paper = slidingExtreme(paper, w, h, r, Math.min);
+  const blur = Math.max(1, Math.round(r / 2));
+  paper = boxBlur(boxBlur(paper, w, h, blur), w, h, blur);
+
+  // Read back bilinearly; a grid one block wide or tall just repeats.
+  const cell = (pos, n) => {
+    const t = Math.min(n - 1, Math.max(0, (pos + 0.5) / f - 0.5));
+    const i0 = Math.floor(t);
+    return [i0, Math.min(n - 1, i0 + 1), t - i0];
+  };
+  const [x0, x1, tx] = [new Int32Array(width), new Int32Array(width), new Float32Array(width)];
+  for (let x = 0; x < width; x++) [x0[x], x1[x], tx[x]] = cell(x, w);
+  const out = new Float32Array(gray.length);
+  for (let y = 0; y < height; y++) {
+    const [y0, y1, ty] = cell(y, h);
+    const [r0, r1] = [y0 * w, y1 * w];
+    for (let x = 0; x < width; x++) {
+      const top = paper[r0 + x0[x]] + (paper[r0 + x1[x]] - paper[r0 + x0[x]]) * tx[x];
+      const bottom = paper[r1 + x0[x]] + (paper[r1 + x1[x]] - paper[r1 + x0[x]]) * tx[x];
+      const p = top + (bottom - top) * ty;
+      const i = y * width + x;
+      out[i] = p > 1 ? Math.min(255, (255 * gray[i]) / p) : gray[i];
+    }
+  }
+  return out;
+}
+
+// The max (or min) over a (2r + 1)² square around each pixel, clamped at the image
+// edges: a monotonic queue per row, then per column, so the cost doesn't depend on r.
+function slidingExtreme(src, width, height, r, pick) {
+  const better = pick === Math.max ? (a, b) => a >= b : (a, b) => a <= b;
+  const run = (read, write, n) => {
+    const queue = new Int32Array(n);
+    let [head, tail] = [0, 0];
+    for (let i = 0, added = 0; i < n; i++) {
+      for (; added < Math.min(n, i + r + 1); added++) {
+        const v = read(added);
+        while (tail > head && better(v, read(queue[tail - 1]))) tail--;
+        queue[tail++] = added;
+      }
+      while (queue[head] < i - r) head++;
+      write(i, read(queue[head]));
+    }
+  };
+  const rows = new Float32Array(src.length);
+  for (let y = 0; y < height; y++) {
+    const o = y * width;
+    run((x) => src[o + x], (x, v) => (rows[o + x] = v), width);
+  }
+  const out = new Float32Array(src.length);
+  for (let x = 0; x < width; x++) run((y) => rows[y * width + x], (y, v) => (out[y * width + x] = v), height);
+  return out;
+}
+
+// The mean over a (2r + 1)² square, clamped at the edges (running sums, rows then columns).
+function boxBlur(src, width, height, r) {
+  const run = (read, write, n) => {
+    let sum = 0;
+    for (let i = -r; i <= r; i++) sum += read(Math.min(n - 1, Math.max(0, i)));
+    for (let i = 0; i < n; i++) {
+      write(i, sum / (2 * r + 1));
+      sum += read(Math.min(n - 1, i + r + 1)) - read(Math.max(0, i - r));
+    }
+  };
+  const rows = new Float32Array(src.length);
+  for (let y = 0; y < height; y++) {
+    const o = y * width;
+    run((x) => src[o + x], (x, v) => (rows[o + x] = v), width);
+  }
+  const out = new Float32Array(src.length);
+  for (let x = 0; x < width; x++) run((y) => rows[y * width + x], (y, v) => (out[y * width + x] = v), height);
+  return out;
+}
+
+/**
+ * A threshold between the lines and the paper, from the grey levels' histogram (Otsu:
+ * the split with the most variance between the two sides). Where a gap in the levels
+ * makes a run of splits equally good, it takes the middle of the run, so the soft
+ * ramp around the threshold falls in the gap rather than on the lines.
+ */
+export function otsuThreshold(gray) {
+  const hist = new Float64Array(256);
+  for (let i = 0; i < gray.length; i++) hist[Math.min(255, Math.max(0, Math.round(gray[i])))]++;
+  const total = gray.length;
+  let sumAll = 0;
+  for (let k = 0; k < 256; k++) sumAll += k * hist[k];
+  let [first, last, bestVar] = [127, 127, -1];
+  let [count, sum] = [0, 0];
+  for (let k = 0; k < 255; k++) {
+    count += hist[k];
+    sum += k * hist[k];
+    if (!count || count === total) continue;
+    const [mDark, mLight] = [sum / count, (sumAll - sum) / (total - count)];
+    const between = count * (total - count) * (mDark - mLight) ** 2;
+    if (between > bestVar * (1 + 1e-9)) [first, last, bestVar] = [k, k, between];
+    else if (between >= bestVar * (1 - 1e-9)) last = k;
+  }
+  return (first + last) / 2 + 0.5;
+}
+
+/**
+ * Clear every mark (8-connected pixels with any coverage) that fits in a square of
+ * `size` px. Long thin strokes stay, however little ink they have. Changes `mask`.
+ */
+export function removeSpecks(mask, width, height, size) {
+  const seen = new Uint8Array(mask.length);
+  const stack = new Int32Array(mask.length);
+  const found = new Int32Array(mask.length);
+  for (let start = 0; start < mask.length; start++) {
+    if (seen[start] || mask[start] <= 0) continue;
+    seen[start] = 1;
+    stack[0] = start;
+    let [top, count] = [1, 0];
+    let [x0, x1, y0, y1] = [start % width, start % width, (start / width) | 0, (start / width) | 0];
+    let small = true;
+    while (top) {
+      const i = stack[--top];
+      const [x, y] = [i % width, (i / width) | 0];
+      if (small) {
+        [x0, x1, y0, y1] = [Math.min(x0, x), Math.max(x1, x), Math.min(y0, y), Math.max(y1, y)];
+        small = x1 - x0 < size && y1 - y0 < size;
+        found[count++] = i; // kept only while the mark might still be a speck
+      }
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const j = ny * width + nx;
+          if (nx < 0 || nx >= width || seen[j] || mask[j] <= 0) continue;
+          seen[j] = 1;
+          stack[top++] = j;
+        }
+      }
+    }
+    if (small) for (let k = 0; k < count; k++) mask[found[k]] = 0;
+  }
+  return mask;
 }
 
 // ---- Stroke distance field ---------------------------------------------------

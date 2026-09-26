@@ -102,6 +102,25 @@ button.danger:hover {
   color: var(--danger);
 }
 
+/* A small action beside a readout, such as Auto for the threshold */
+button.chip {
+  min-height: 20px;
+  padding: 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  border-radius: 5px;
+}
+
+button.chip:hover {
+  color: var(--text);
+}
+
+.field .value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 button.icon {
   display: inline-grid;
   place-items: center;
