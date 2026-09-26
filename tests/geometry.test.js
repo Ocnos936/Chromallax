@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  canvasSize, computeLayout, fillScale, movePanels, panelAt, panelBox, panelHandles, ratioLabel, referencePanel,
+  canvasSize, computeLayout, fillScale, motionLoop, moveLayout, movePanels, panelAt, panelBox, panelHandles, ratioLabel, referencePanel,
   resizePanel, rotatePanel, scaleLayer, scalePanels, snapRect, zoomArt,
 } from '../src/geometry.js';
 import { DEFAULTS } from '../src/config.js';
@@ -343,4 +343,75 @@ test('rotatePanel follows the swing about the centre, snaps, and wraps', () => {
 
 test('snapRect rounds edges, not sizes', () => {
   assert.deepEqual(snapRect({ x: 10.4, y: 3.6, w: 5.2, h: 2.2 }), { x: 10, y: 4, w: 6, h: 2 });
+});
+
+// ---- Motion ----
+
+const view = { width: 1000, height: 1500 };
+const stillLayout = computeLayout({
+  ...DEFAULTS,
+  ...view,
+  panels: [referencePanel(DEFAULTS, 1 / DEFAULTS.depth), { shape: 'circle', x: 0.3, y: 0.7, w: 0.2, h: 0.2, angle: 0 }],
+});
+const motion = (m) => ({ ...DEFAULTS, motionShift: 0.02, ...m }); // 0.02 × 1000 = 20 px end to end
+const frameAt = (m, phase) => moveLayout(stillLayout, phase, motion(m), view);
+// The echo's offset against the ink, and each layer's own offset, in px.
+const offsets = (frame) => ({
+  rel: [frame.secondary.x - frame.primary.x - (stillLayout.secondary.x - stillLayout.primary.x), frame.secondary.y - frame.primary.y - (stillLayout.secondary.y - stillLayout.primary.y)],
+  echo: [frame.secondary.x - stillLayout.secondary.x, frame.secondary.y - stillLayout.secondary.y],
+  ink: [frame.primary.x - stillLayout.primary.x, frame.primary.y - stillLayout.primary.y],
+});
+
+test('the windows stay put in every motion frame', () => {
+  for (const motionPath of ['wiggle', 'orbit', 'breathe']) {
+    for (const phase of [0, 0.2, 0.55, 0.9]) assert.deepEqual(frameAt({ motionPath, motionViews: 3 }, phase).panels, stillLayout.panels);
+  }
+});
+
+test('a wiggle steps through its views and back, spanning the shift', () => {
+  const views = [0, 1, 2, 3, 4, 5].map((i) => offsets(frameAt({ motionPath: 'wiggle', motionViews: 4 }, (i + 0.5) / 6)).rel[0]);
+  const step = 20 / 3;
+  [-10, -10 + step, 10 - step, 10, 10 - step, -10 + step].forEach((x, i) => close(views[i], x, 1e-9, `view ${i}`));
+  const two = [0.25, 0.75].map((phase) => offsets(frameAt({ motionPath: 'wiggle', motionViews: 2 }, phase)).rel[0]);
+  assert.deepEqual(two, [-10, 10]);
+  assert.equal(offsets(frameAt({ motionPath: 'wiggle', motionViews: 3 }, 0.3)).rel[1], 0);
+});
+
+test('the pivot shares the move between echo and ink, in opposite directions', () => {
+  for (const [motionPivot, echo] of [[0, 1], [0.5, 0.5], [1, 0], [0.25, 0.75]]) {
+    const o = offsets(frameAt({ motionPath: 'wiggle', motionViews: 2, motionPivot }, 0.75));
+    close(o.rel[0], 10, 1e-9, `relative at ${motionPivot}`);
+    close(o.echo[0], 10 * echo, 1e-9, `echo at ${motionPivot}`);
+    close(o.ink[0], -10 * (1 - echo), 1e-9, `ink at ${motionPivot}`);
+  }
+});
+
+test('an orbit steps round a circle whose diameter is the shift', () => {
+  const at = [0, 1, 2, 3].map((i) => offsets(frameAt({ motionPath: 'orbit', motionViews: 4 }, (i + 0.5) / 4)).rel);
+  [[10, 0], [0, 10], [-10, 0], [0, -10]].forEach(([x, y], i) => {
+    close(at[i][0], x, 1e-9, `view ${i} x`);
+    close(at[i][1], y, 1e-9, `view ${i} y`);
+  });
+});
+
+test('breathing scales echo and ink about the focus point, apart by the shift', () => {
+  const frame = frameAt({ motionPath: 'breathe', motionViews: 2, motionPivot: 0.5 }, 0.75);
+  const c = stillLayout.center;
+  const scaleOf = (r, s) => (r.x + r.w - c.x) / (s.x + s.w - c.x);
+  const [echo, ink] = [scaleOf(frame.secondary, stillLayout.secondary), scaleOf(frame.primary, stillLayout.primary)];
+  close(echo / ink, 1.02, 1e-12, 'echo against ink');
+  close(echo * ink, 1, 1e-12, 'split halfway');
+  close((frame.secondary.y - c.y) / (stillLayout.secondary.y - c.y), echo, 1e-12, 'about c');
+});
+
+test('every motion loops seamlessly, in steps of the view time', () => {
+  for (const motionPath of ['wiggle', 'orbit', 'breathe']) {
+    const m = { motionPath, motionViews: 3 };
+    sameRect(frameAt(m, 0).primary, frameAt(m, 1).primary, motionPath, 1e-9);
+  }
+  const loop = (motionPath, motionViews) => motionLoop({ motionPath, motionViews, motionViewTime: 0.1 });
+  close(loop('wiggle', 4), 0.6, 1e-12, 'wiggle, 4 views');
+  close(loop('wiggle', 2), 0.2, 1e-12, 'wiggle, 2 views');
+  close(loop('breathe', 3), 0.4, 1e-12, 'breathe, 3 views');
+  close(loop('orbit', 4), 0.4, 1e-12, 'orbit, 4 views');
 });

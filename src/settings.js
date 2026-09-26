@@ -2,7 +2,7 @@
 // what is kept and checks what comes back. Left out: what belongs to the current image
 // (its placement, and the line extraction tuned for it), the layer picked for gestures,
 // and the background, which has no control.
-import { RANGES, SIZES } from './config.js';
+import { EXPORT_DEFAULTS, EXPORT_FORMATS, GIF_SCALES, MOTION_VIEWS, QUALITY_RANGE, RANGES, SIZES } from './config.js';
 import { RATIOS } from './geometry.js';
 
 const VERSION = 1;
@@ -51,6 +51,11 @@ const RULES = {
   secondaryOffsetY: number(RANGES.offset),
   primaryOffsetX: number(RANGES.offset),
   primaryOffsetY: number(RANGES.offset),
+  motionPath: oneOf(['wiggle', 'orbit', 'breathe']),
+  motionShift: number(RANGES.motionShift),
+  motionViews: oneOf(MOTION_VIEWS),
+  motionViewTime: number(RANGES.motionViewTime),
+  motionPivot: number(RANGES.motionPivot),
   lineWidth: number(RANGES.lineWidth),
   equalWidth: flag,
   panel: colour,
@@ -72,6 +77,18 @@ export function readSettings(stored) {
   const out = {};
   for (const [key, read] of Object.entries(RULES)) {
     const value = read(settings[key]);
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
+/** The export menu's options as stored (format, JPEG/WebP quality, GIF size), checked. */
+export function readExportOptions(stored) {
+  const rules = { format: oneOf(EXPORT_FORMATS), quality: number(QUALITY_RANGE), gifScale: oneOf(GIF_SCALES) };
+  const out = { ...EXPORT_DEFAULTS };
+  if (stored === null || typeof stored !== 'object') return out;
+  for (const [key, read] of Object.entries(rules)) {
+    const value = read(stored[key]);
     if (value !== undefined) out[key] = value;
   }
   return out;
